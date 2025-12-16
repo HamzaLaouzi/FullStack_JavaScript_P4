@@ -1,0 +1,319 @@
+/* =========================================================
+   TEMA PASTEL MODERNO + DRAG & DROP FUNCIONAL
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   Variables pastel
+--------------------------------------------------------- */
+:root {
+    --color-bg: #f6f2ff;
+    --color-surface: #ffffff;
+    --color-surface-soft: #fdf7ff;
+
+    --color-border-soft: #e2ddf7;
+
+    --color-primary: #8e9dff;
+    --color-primary-strong: #6a7bff;
+    --color-primary-soft: #e1e5ff;
+
+    --color-secondary: #ffc6b8;
+    --color-secondary-soft: #ffe7df;
+
+    --color-accent: #7fdcc5;
+    --color-accent-soft: #def7f0;
+
+    --color-text-main: #242343;
+    --color-text-soft: #6a6a8e;
+    --color-text-muted: #9b9bb7;
+
+    --shadow-soft: 0 8px 22px rgba(71, 55, 148, 0.12);
+    --shadow-soft-sm: 0 4px 14px rgba(71, 55, 148, 0.12);
+
+    --radius-lg: 18px;
+    --radius-md: 12px;
+    --radius-pill: 999px;
+}
+
+/* ---------------------------------------------------------
+   Base
+--------------------------------------------------------- */
+body {
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: radial-gradient(circle at top left, #f6f2ff 0, #f4fbff 100%);
+    color: var(--color-text-main);
+    line-height: 1.6;
+}
+
+.container {
+    padding-top: 1.5rem;
+    padding-bottom: 1.5rem;
+}
+
+/* ---------------------------------------------------------
+   Navbar
+--------------------------------------------------------- */
+.navbar.navbar-light.bg-light {
+    background: linear-gradient(135deg, #fef6ff, #f4fbff) !important;
+    border-bottom: 1px solid var(--color-border-soft);
+    box-shadow: var(--shadow-soft-sm);
+}
+
+.navbar-brand {
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 1rem;
+    color: var(--color-primary-strong) !important;
+}
+
+.navbar .nav-link {
+    font-weight: 500;
+    color: var(--color-text-soft) !important;
+    border-radius: var(--radius-pill);
+    padding: 0.45rem 1rem;
+    transition: .2s;
+}
+
+.navbar .nav-link:hover {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary-strong) !important;
+}
+
+.navbar .nav-link.active {
+    background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+    color: #ffffff !important;
+    box-shadow: var(--shadow-soft-sm);
+}
+
+/* ---------------------------------------------------------
+   Botones
+--------------------------------------------------------- */
+.btn {
+    border-radius: var(--radius-pill);
+    font-weight: 600;
+    padding: 0.55rem 1.2rem;
+    transition: .15s;
+}
+
+.btn-primary {
+    background-image: linear-gradient(135deg, var(--color-primary), var(--color-primary-strong));
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-image: linear-gradient(135deg, var(--color-primary-strong), var(--color-primary));
+}
+
+.btn-outline-primary {
+    border-radius: var(--radius-pill);
+}
+
+.btn-danger {
+    background-color: #ff6b77;
+    border: none;
+}
+
+.btn-danger:hover {
+    background-color: #ff4c5c;
+}
+
+/* ---------------------------------------------------------
+   Formularios
+--------------------------------------------------------- */
+.form-control {
+    border-radius: 12px;
+    border: 1px solid var(--color-border-soft);
+    background-color: #fbfaff;
+}
+
+.form-control:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 0.15rem rgba(142, 157, 255, 0.3);
+}
+
+/* ---------------------------------------------------------
+   Tablas
+--------------------------------------------------------- */
+.table {
+    border-radius: var(--radius-md);
+    background-color: white;
+}
+
+.table thead tr {
+    background: linear-gradient(135deg, var(--color-primary-soft), var(--color-secondary-soft));
+}
+
+.table-dark {
+    background: linear-gradient(135deg, var(--color-primary-strong), #4e4b80) !important;
+    color: white !important;
+}
+
+/* ---------------------------------------------------------
+   Tarjetas generales
+--------------------------------------------------------- */
+.card {
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border-soft);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+}
+
+/* ---------------------------------------------------------
+   Tarjetas personalizadas (plantilla con .vol-card)
+--------------------------------------------------------- */
+
+/* base */
+.vol-card {
+    border-radius: 14px;
+    border: 1px solid var(--color-border-soft);
+    background: #ffffff;
+    color: #222;
+    box-shadow: var(--shadow-soft-sm);
+    cursor: grab;
+}
+
+.vol-card:active {
+    cursor: grabbing;
+}
+
+/* contenido interno */
+.vol-card .card-body {
+    padding: 1rem 1.25rem;
+}
+
+.vol-card__title {
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+}
+
+.vol-card__date {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.vol-card__desc {
+    font-size: 0.9rem;
+    color: #555 !important;
+}
+
+.vol-card__author {
+    font-size: 0.8rem;
+    opacity: 0.9;
+}
+
+/* variantes pastel */
+.vol-card--blue {
+    background: linear-gradient(135deg, #e1e5ff, #f4f7ff);
+    border-color: #b7c0ff;
+    color: #1f2340;
+}
+
+.vol-card--green {
+    background: linear-gradient(135deg, #def7f0, #f3fffb);
+    border-color: #9de5cf;
+    color: #12352c;
+}
+
+.vol-card--blue *,
+.vol-card--green * {
+    color: inherit;
+}
+
+/* ---------------------------------------------------------
+   Drag & Drop - contenedores
+--------------------------------------------------------- */
+#dragContainer .col,
+#dropContainer .col {
+    margin-bottom: 1rem;
+}
+
+/* zona “Mi selección” */
+#dropContainer {
+    border: 2px dashed var(--color-primary-soft);
+    background: #f7f6ff;
+    border-radius: 18px;
+    padding: 1rem;
+}
+
+/* ---------------------------------------------------------
+   Tarjetas generadas por JS (text-bg-primary / text-bg-success)
+   Se ven azules o verdes SIEMPRE, también en Mi selección
+--------------------------------------------------------- */
+
+/* Cards dentro de los dragBox (las que genera JS) */
+.dragBox .card {
+    border-radius: 14px;
+    box-shadow: var(--shadow-soft-sm);
+    border: 1px solid #d3d6f2;
+}
+
+/* En el contenedor de disponibles, respetamos colores Bootstrap */
+#dragContainer .dragBox .card.text-bg-primary,
+#dragContainer .dragBox .card.text-bg-success {
+    /* Mantienen sus fondos azul/verde Bootstrap */
+}
+
+/* En Mi selección: también mantienen azul/verde,
+   y nos aseguramos de que el texto se vea en blanco */
+#dropContainer .dragBox .card.text-bg-primary,
+#dropContainer .dragBox .card.text-bg-success {
+    color: #ffffff !important;
+}
+
+/* Todo el texto dentro hereda blanco para buen contraste */
+#dropContainer .dragBox .card.text-bg-primary *,
+#dropContainer .dragBox .card.text-bg-success * {
+    color: inherit !important;
+}
+
+/* Bordes decorativos para distinguir visualmente en Mi selección */
+#dropContainer .dragBox .card.text-bg-primary {
+    border-left: 4px solid #8e9dff;
+}
+
+#dropContainer .dragBox .card.text-bg-success {
+    border-left: 4px solid #7fdcc5;
+}
+
+/* ---------------------------------------------------------
+   Login / Registro (si los usas)
+--------------------------------------------------------- */
+.auth-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle, #ffeef7 0, #f6f2ff 40%, #f4fbff 100%);
+}
+
+.auth-card {
+    background: white;
+    border-radius: 24px;
+    padding: 2.2rem;
+    box-shadow: var(--shadow-soft);
+}
+
+/* ---------------------------------------------------------
+   Utilidades
+--------------------------------------------------------- */
+.text-muted { color: var(--color-text-muted) !important; }
+.shadow-soft { box-shadow: var(--shadow-soft); }
+.rounded-lg { border-radius: var(--radius-lg); }
+
+/* =========================================================
+   Zona visible para "Voluntariados Disponibles" (dragContainer)
+   cuando está vacía
+   ========================================================= */
+
+#dragContainer {
+    min-height: 220px;                     /* hace que siempre tenga altura */
+    border: 2px dashed rgba(142, 157, 255, 0.5);  /* borde pastel tipo “target” */
+    border-radius: 18px;
+    padding: 0.75rem;                      /* que el contenido no pegue al borde */
+    background: rgba(255, 255, 255, 0.7);  /* fondo claro para diferenciarlo */
+}
+
+/* Para que el borde no quede tan raro cuando hay tarjetas dentro */
+#dragContainer .col {
+    margin-bottom: 1rem;
+}
