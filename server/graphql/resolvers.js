@@ -7,6 +7,27 @@ const Voluntariado = require('../models/Voluntariado');
 
 const { generateToken } = require('../auth');
 
+// eventos de aviso al cambiar voluntariados --------------------------------------------
+const notificacionVoluntariados = (context, accion, datos) => {
+    // DEBUGGIN BABY --------------------
+    if (!context) {
+        console.error("ERROR CRÍTICO: El 'context' es undefined o null.");
+        return;
+    }
+    if (!context.io) {
+        console.error("ERROR CRÍTICO: 'context.io' no existe. Socket.io no se pasó al resolver.");
+        return;
+    }
+    console.log(`Emitiendo evento socket: ${accion} a 'voluntariados_room'`);
+
+  if (context.io) {
+        context.io.to('voluntariados_room').emit('voluntariados_update', { // sala especíica
+            action: accion,
+            data: datos
+        });
+    }
+};
+
 const resolvers = {
   // querys ----------------------------------------------------------------------------------------------------------------------------------------------
   // obtener los usuarios ----------------------------------------------------------------
@@ -215,9 +236,7 @@ const resolvers = {
   },
 
   //crear voluntariado ----------------------------------------------------------------
-  crearVoluntariado: async (args) => {
-    const { input } = args;
-
+  crearVoluntariado: async ({ input }, context) => {
     if (!input) throw new GraphQLError('nuevo input requerido');
 
     try {
@@ -227,6 +246,8 @@ const resolvers = {
       }
 
       const nuevoVoluntariado = await Voluntariado.create(input);
+
+      notificacionVoluntariados(context, 'create', { title: nuevoVoluntariado.title }); // hook para notificar a los clientes
       
       return nuevoVoluntariado;
     } catch (error) {
@@ -235,9 +256,7 @@ const resolvers = {
   },
 
   // actualizar voluntariado -----------------------------------------------------------
-  actualizarVoluntariado: async (args) => {
-    const { id, input } = args;
-
+  actualizarVoluntariado: async ({ id, input }, context) => {
     if (!id || !input) {
         throw new GraphQLError('el ID y los nuevos datos son obligatorios');
     }
@@ -253,6 +272,8 @@ const resolvers = {
         throw new GraphQLError(`Voluntariado con id ${id} no encontrado`);
       }
 
+      notificacionVoluntariados(context, 'update', { id }); // hook para notificar a los clientes
+
       return volunActualizado;
     } catch (error) {
       throw new GraphQLError(`Error al actualizar el voluntariado: ${error.message}`);
@@ -260,17 +281,18 @@ const resolvers = {
   },
 
   // eliminar voluntariado ------------------------------------------------------------
-  eliminarVoluntariado: async (args) => {
-    const { id } = args;
-    try {
-      if (!id) {
+  eliminarVoluntariado: async ({ id }, context) => {
+     if (!id) {
         throw new GraphQLError('Se requiere el ID como parametro');
       }
+    try {
       const voluntariadoAEliminar = await Voluntariado.findByIdAndDelete(id);
 
       if (!voluntariadoAEliminar) {
         throw new GraphQLError(`Voluntariado con id ${id} no encontrado`);
       }
+
+      notificacionVoluntariados(context, 'delete', { id }); // hook para notificar a los clientes
 
       return voluntariadoAEliminar;
     } catch (error) {

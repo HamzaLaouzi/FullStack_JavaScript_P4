@@ -3,7 +3,6 @@ import {
     fetchAllVoluntariados
 } from './almacenaje.js'
 
-// declaramos constantes para identificar los 2 contenedores y las hacemos globales
 window.dragContainer = document.getElementById("dragContainer")
 window.dropContainer = document.getElementById("dropContainer")
 
@@ -58,12 +57,10 @@ dragContainer.addEventListener("drop", (e) => {
 function moveCard(cardId, fromContainer, toContainer) {
   const cardElement = fromContainer.querySelector(`#card-${cardId}`);
   if (!cardElement) {
-    console.error('Tarjeta no encontrada:', cardId);
     return;
   }
   
   toContainer.appendChild(cardElement);
-  console.log(`Tarjeta ${cardId} movida`);
 }
 
 
@@ -175,6 +172,11 @@ async function loadAndRenderCards() {
         }
 
         cards.forEach(card => {
+            const alreadyInDrop = document.getElementById(`card-${card.id}`); // revisar que no esté en drop para no duplicarla
+            if (alreadyInDrop && dropContainer.contains(alreadyInDrop)) {
+                return;
+            }
+            
             const cardElement = createCardElement(card); 
             dragContainer.appendChild(cardElement);
         });
@@ -188,13 +190,39 @@ async function loadAndRenderCards() {
     }
 }
 
+// webscketsss ------------------------------------------------------------------------------
+function initDashboardSocket() {
+    const token = localStorage.getItem('jwtToken');
+    const socket = io({
+        auth: { token: token },
+        reconnection: true
+    });
+
+    socket.on('connect', () => {
+        console.log('Conectado al servidor en tiempo real');
+        socket.emit('join_voluntariados'); // misma sala
+    });
+
+    socket.on('voluntariados_update', async (payload) => {
+        console.log('Actualización recibida:', payload.action);
+        
+        await loadAndRenderCards(); // refresh data servidor
+        
+        applyFilter(currentFilter); // aplicar el filtro de tipo para que se guarde
+    });
+}
+
 // INICIALIZACIÓN ---------------------------------------------------------------------------
 window.addEventListener("DOMContentLoaded", async () => {
-    console.log("=== index.js DOMContentLoaded ===")
+    console.log("INICIANDO INDEX CON DASHBOARD")
     showActiveUser()
 
     const allCards = await loadAndRenderCards();
     
-    initFilter(allCards)
+    initFilter(allCards);
+    applyFilter("todos");
+
+    initDashboardSocket();
+
     console.log("Página principal iniciada")
 });

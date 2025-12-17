@@ -6,6 +6,8 @@ const {graphqlHTTP} = require('express-graphql'); // manejar graphql
 const {ruruHTML} = require('ruru/server'); // para probar graphql
 const cors = require('cors'); // permitir peticiones desde postman
 const mongoose = require('mongoose'); // mongoose en lugar del driver nativo
+const http = require('http'); // servidor nativo
+const { Server } = require("socket.io"); // servidor de sockets
 // modulos -----------------------------------------------------------------------------------------------------------
 const { connectDB } = require('./mongo'); // conectar con mongodb
 const { verifyToken } = require("./auth"); // autenticacion
@@ -20,17 +22,53 @@ const Voluntariado = require('./models/Voluntariado');
 const app = express();
 const PORT = process.env.PORT || 4000; // puerto para correr el servidor
 
+// servidor hibrido http y socket
+const httpServer = http.createServer(app);
+const io = new Server(httpServer, {
+    cors: {
+        origin: "*", // permite todas la conections, aquí iría url prod
+        methods: ["GET", "POST"]
+    }
+})
+
 // Configurar procesadores -------------------------------------------------------------------------------------------
 app.use(cors()); // permitir peticiones desde postman
 app.use(express.json()); // para que express entienda json
 
-// rutas rest --------------------------------------------------------------------------------------------------------
 app.use(express.static('public'));
+
+// Autenticacion para websocket --------------------------------------------------------------------------------------
+io.use((socket, next) => {
+    const token = socket.handshake.auth.token;
+    if (token) {
+        const user = verifyToken(token);
+        if (user) {
+            socket.user = user;
+            return next();
+        }
+    }
+    console.log("Conexión de socket sin token válido");
+    next(new Error("unauthorized")); // si no hay token o es inválido, rechazar
+});
+
+// gestion de salas --------------------------------------------------------------------------------------------------
+io.on('connection', (socket) => {
+    console.log('Cliente conectado con websocket:', socket.id);
+
+    socket.on('join_voluntariados', () => {
+        socket.join('voluntariados_room');
+        console.log(`Socket unido a sala voluntariados con id ${socket.id}`);
+    });
+    socket.on('disconnect', () => {
+        console.log('Desconectado');
+    });
+});
+
+// rutas rest --------------------------------------------------------------------------------------------------------
 app.use('/api/users', userRoutes);
 app.use('/api/cards', cardRoutes);
 
 // Configurar graphql ------------------------------------------------------------------------------------------------
-// ruta para la interfaz grafica ----------------------------------------
 app.get('/', (_req, res) => {
   res.type('html');
   res.end(ruruHTML({endpoint: "/graphql"}));
@@ -51,7 +89,7 @@ app.use('/graphql', graphqlHTTP(async (req) => {
     return {
         schema: schema,
         rootValue: resolvers,
-        context: { user: user }, 
+        context: { user: user, io: io }, // io para resolvers
         graphiql: true, 
     };
 }));
@@ -142,14 +180,13 @@ async function startServer() {
     try {
       await connectDB();
 
-      app.listen(PORT, () => {
-        console.log(`Servidor corriendo en el localhost: ${PORT}`);
-        console.log(`Interfaz graphiqL en el localhost: ${PORT}/`);
+      httpServer.listen(PORT, () => {
+        console.log(`Servidor https y websocket en el localhost: ${PORT}`);
         console.log(`🔧 Modo (dev/prod): ${process.env.NODE_ENV || 'desarrollo'}`);
         console.log(`Conectado a mongodb Atlas`);
       });
     } catch (error) {
-        console.error('Servidor roto por fallo de la conexión con la BD', error.message);
+        console.error('Servidor roto por fallo de inicio', error.message);
         process.exit(1); 
     }
 }

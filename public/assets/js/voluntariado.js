@@ -1,5 +1,7 @@
 import { showActiveUser, addCardDB, fetchAllVoluntariados, removeSelectedCard, getActiveUserEmail, getUserRole } from "./almacenaje.js"
 
+let myChart = null; // variable global para el gráfico, se tiene que poder resetear para que no se superponga al actualizar voluntariados automáticamente
+
 // declaramos constantes para obtener el ID de diferentes elementos del DOM
 const submitButton = document.getElementById("submitId")
 
@@ -54,23 +56,147 @@ async function addCardsInTable() {
 }
 
 async function getChartData() {
-    console.log("Inicializando gráficos (Placeholder)...");
-
     try {
         const cards = await fetchAllVoluntariados();
-        
 
-        const counts = cards.reduce((acc, card) => {
-            acc[card.volunType] = (acc[card.volunType] || 0) + 1;
-            return acc;
-        }, {});
+        const dataByUser = {};
 
-        console.log("Datos procesados para el gráfico:", counts);
+        cards.forEach(card => {
+            const userEmail = card.email || 'Desconocido';
+            
+            if (!dataByUser[userEmail]) {
+                dataByUser[userEmail] = { 'Petición': 0, 'Oferta': 0 };
+            }
+            if (card.volunType === 'Petición') {
+                dataByUser[userEmail]['Petición']++;
+            } else if (card.volunType === 'Oferta') {
+                dataByUser[userEmail]['Oferta']++;
+            }
+        });
+
+        const labels = Object.keys(dataByUser);
+        const dataPeticiones = labels.map(email => dataByUser[email]['Petición']);
+        const dataOfertas = labels.map(email => dataByUser[email]['Oferta']);
+        const ctx = document.getElementById('canvas');
+        if (!ctx) return;
+
+        if (myChart) { // destruir gráfico antiguo para evitar superposición
+            myChart.destroy();
+        }
+
+        myChart = new Chart(ctx, {
+            type: 'bar', 
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Peticiones',
+                        data: dataPeticiones,
+                        backgroundColor: '#0d6efd',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Ofertas',
+                        data: dataOfertas,
+                        backgroundColor: '#ffc107',
+                        borderWidth: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 0
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                    }
+                }
+            }
+        });
+
+        console.log("Grafico actualizado:", dataByUser);
 
     } catch (error) {
-        console.error("Error al obtener datos para el gráfico:", error);
+        console.error("Error al obtener datos para el grafico", error);
     }
 }
+
+// GEST WEBSOCKETS -----------------------------------------------------------------------------------------------------------------------
+let socket;
+
+function initRealTimeCon() {
+    const token = localStorage.getItem('jwtToken');
+
+    socket = io({ // autenticación
+        auth: {
+            token: token
+        },
+        reconnection: true,
+        reconnectionAttempts: 5, // intentos máximos + espera entre intentos
+        reconnectionDelay: 1000,
+    });
+
+
+    socket.on('connect', () => { // ONOPEN
+        console.log('Conectado al servidor en tiempo real');
+        socket.emit('join_voluntariados'); // sala específica para reducir tráfico
+    });
+
+    socket.on('voluntariados_update', async (payload) => { // ONMESSAGE cuando hay CRUD de voluntariados
+        console.log('Actualización recibida:', payload);
+        
+        await addCardsInTable(); // tabla siempre actualizada
+        await getChartData(); 
+        
+        notiUpdated(`Datos actualizados: ${payload.action}`);
+    });
+
+    socket.on('connect_error', (err) => { // errores
+        console.error('Error al conectar socket:', err.message);
+        if (err.message === "unauthorized") { // si el token caduca, redirigir a login
+            alert("La sesión ha expirado, por favor inicia sesión de nuevo");
+            localStorage.removeItem('jwtToken'); // limpiar token antiguo
+            localStorage.removeItem('activeUserEmail');
+            window.location.href = "login.html";
+        }
+    });
+
+    socket.on('disconnect', (reason) => {
+        console.warn('Desconectado del servidor en tiempo real:', reason);
+        if (reason === 'io server disconnect') {
+            socket.connect(); // reconectar
+        }
+    });
+}
+
+function notiUpdated(mensaje) { // toast visual para feedback de updates
+    const toast = document.createElement('div');
+    toast.className = 'alert alert-info position-fixed bottom-0 end-0 m-3 p-2 small shadow';
+    toast.style.zIndex = '9999';
+    toast.textContent = mensaje;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
 
 async function handleNewCard(event) {
     event.preventDefault(); // Detener el envío del formulario
@@ -156,6 +282,8 @@ window.addEventListener("DOMContentLoaded", async () => {
     
     await addCardsInTable();
     await getChartData();
+
+    initRealTimeCon(); // iniciar sockets
     
     console.log("página voluntariados iniciada");
 });
