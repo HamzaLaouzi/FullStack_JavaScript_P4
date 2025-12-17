@@ -1,4 +1,5 @@
 const { GraphQLError } = require('graphql');// manejo errores graphql
+const bcrypt = require('bcryptjs');
 
 // importacion modelos
 const User = require('../models/User');
@@ -113,55 +114,43 @@ const resolvers = {
   // mutations -------------------------------------------------------------------------------------------------------------------------------------------
 
   // inicio de sesión autenticado -------------------------------------------------------
-  login: async (args) => {
-    const { email, password } = args;
+  login: async ({ email, password }) => {
+    const user = await User.findOne({ email });
+    if (!user) throw new GraphQLError('Usuario no encontrado');
 
-    try {
-      const usuario = await User.findOne({ email }).select('+password');
+    const valid = await bcrypt.compare(password, user.password);
+    if (!valid) throw new GraphQLError('Contraseña incorrecta');
 
-      if (!usuario) {
-        throw new GraphQLError('El correo no es correcto', {
-          extensions: { code: 'UNAUTHENTICATED' },
-        });
-      }
+    const token = generateToken(user);
 
-      const isPasswordValid = await usuario.comparePassword(password);
-
-      if (!isPasswordValid) {
-        throw new GraphQLError('La contraseña no es correcta', {
-          extensions: { code: 'UNAUTHENTICATED' },
-        });
-      }
-
-      const token = generateToken({ id: usuario._id.toString(), email: usuario.email });
-      return token;
-    } catch (error) {
-      if (error.extensions?.code === 'UNAUTHENTICATED') {
-          throw error;
-      }
-      throw new GraphQLError(`Error, no se ha podido hacer login: ${error.message}`);
-    }
+    return { //authpayload
+      token,
+      userId: user.id,
+      role: user.role
+    };
   },
 
   // crear usuario ----------------------------------------------------------------------
-  crearUsuario: async (args) => {
-    const { input } = args;
+  crearUsuario: async ({ input }) => {
+    const { name, email, password, role } = input;
 
-    if (!input || !input.name || !input.email || !input.password) {
-        throw new GraphQLError('los campos son obligatorios');
+    const existeUsuario = await User.findOne({ email });
+    if (existeUsuario) {
+      throw new GraphQLError('Este correo ya tiene una cuenta.');
     }
 
     try {
-        const nuevoUsuario = await User.create({
-            name: input.name,
-            email: input.email,
-            password: input.password,
-        });
+        const newUser = new User({
+        name,
+        email,
+        password, 
+        role: role || 'user' // Si no llega rol, asignamos 'user'
+    });
         
-        return nuevoUsuario;
+    return await newUser.save();
     } catch (error) {
         if (error.code === 11000) {
-            throw new GraphQLError('Este correo ya tiene una cuenta', {
+            throw new GraphQLError('', {
                 extensions: { code: 'BAD_USER_INPUT' },
             });
         }

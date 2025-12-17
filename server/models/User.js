@@ -21,6 +21,11 @@ const userSchema = new mongoose.Schema({
         required: [true, 'Campo obligatorio'],
         minlength: [4, 'Mínimo 4 carácteres']
     },
+    role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
+  },
     createdAt: {
         type: Date,
         default: Date.now,

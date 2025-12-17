@@ -27,9 +27,9 @@ export async function fetchAllUsers() {
 }
 
 // crear usuario ---------------------------------------------
-export async function registerNewUser(name, email, password) {
+export async function registerNewUser(name, email, password, role) {
     try {
-        const newUser = await createNewUser(name, email, password); // llamada a graphql
+        const newUser = await createNewUser(name, email, password, role); // llamada a graphql
         console.log("El usuario s eha creado con éxito", newUser);
         return newUser;
     } catch (error) {
@@ -63,6 +63,11 @@ export async function removeUserById(userId) {
 }
 
 // LOGIN Y AUTENTICACION --------------------------------------------------------------------------
+// obtener rol del usuario -----------------------------------
+export function getUserRole() {
+    return localStorage.getItem('userRole');
+}
+
 // mostrar el usuario activo ----------------------------------
 export function showActiveUser() {
     const domUserLogged = document.getElementById("activeUser") || document.getElementById("nav-user");
@@ -73,23 +78,20 @@ export function showActiveUser() {
 
     if (userEmail) {
         domUserLogged.innerHTML = ''; 
-
-        const emailSpan = document.createElement("span");
-        emailSpan.textContent = userEmail;
+    const emailSpan = document.createElement("span");
+        emailSpan.textContent = userEmail; // + (userRole === 'admin' ? ' [Admin]' : '');
         domUserLogged.appendChild(emailSpan);
 
-        const logoutLink = document.createElement("a"); // logout dinámico
+        const logoutLink = document.createElement("a");
         logoutLink.href = "#";
-        logoutLink.textContent = "Cerrar sesión";
+        logoutLink.textContent = " (Logout)";
         logoutLink.className = "text-danger ms-2 text-decoration-none";
-        logoutLink.style.fontSize = "0.9em";
         logoutLink.style.cursor = "pointer";
         logoutLink.addEventListener("click", (e) => {
             e.preventDefault();
             logoutUser();
             window.location.href = "login.html";
         });
-
         domUserLogged.appendChild(logoutLink);
     } else {
         domUserLogged.textContent = "-no login-";
@@ -112,7 +114,7 @@ export async function fetchAllVoluntariados() {
 export async function addCardDB(input) {
     try {
         const newCard = await createVoluntariado(input); 
-        console.log("El voluntariado se ha creado con éxito", newCard);
+        console.log("El voluntariado se ha creado con éxito");
         return newCard;
     } catch (error) {
         console.error("Error al crear voluntariado:", error.message);

@@ -67,20 +67,21 @@ export async function getUsers() {
 }
 
 // crear usuarios ----------------------------------------------------
-export async function createNewUser(name, email, password) {
+export async function createNewUser(name, email, password, role) {
     const MUTATION = `
         mutation CrearUsuario($input: CreateUserInput!) {
             crearUsuario(input: $input) {
                 id
                 name
                 email
+                role
             }
         }
     `;
     const variables = {
-        input: { name, email, password }
+        input: { name, email, password, role }
     };
-    const data = await executeGraphQL(MUTATION, variables); // ruta publica
+    const data = await executeGraphQL(MUTATION, variables, true); // ruta publica
     return data.crearUsuario;
 }
 
@@ -120,11 +121,15 @@ export async function deleteUserById(id) {
 export async function loginApi(email, password) {
     const MUTATION = `
         mutation Login($email: String!, $password: String!) {
-            login(email: $email, password: $password)
+            login(email: $email, password: $password) {
+            token
+            role
+            userId
+            }
         }
     `;
     const variables = { email, password };
-    const data = await executeGraphQL(MUTATION, variables);
+    const data = await executeGraphQL(MUTATION, variables, false);
     return data.login; 
 }
 
@@ -146,6 +151,7 @@ export async function getVoluntariados() {
             voluntariados {
                 id
                 title
+                date
                 description
                 autor
                 volunType

@@ -3,7 +3,6 @@ import { showActiveUser, logoutUser } from "./almacenaje.js";
 import { loginApi } from "./graphClient.js";
 
 // Elementos del DOM ---------------------------------------------------------------
-const domSubmitButton = document.getElementById('submitValues');
 const domLoginForm = document.getElementById('loginForm');
 const emailInput = document.getElementById('loginInputEmail');
 const passwordInput = document.getElementById('loginInputPassword');
@@ -18,16 +17,19 @@ async function handleAsyncLogin() {
     const password = passwordInput.value;
 
     try {
-        const token = await loginApi(email, password); // obtener el token del servidor
+        const authData = await loginApi(email, password); 
         
-        if (token) {
-            localStorage.setItem('jwtToken', token); // almacenar token
-            localStorage.setItem('activeUserEmail', email); // almacenar usuario activo
-            
-            console.log("Login hecho con éxito y el token se ha almacenado");
+        if (authData && authData.token) {
+            // guardar token y rol
+            localStorage.setItem('jwtToken', authData.token);
+            localStorage.setItem('activeUserEmail', email);
+            localStorage.setItem('userRole', authData.role);
+            localStorage.setItem('userId', authData.userId);
+
+            console.log("Login con éitox, el rol del usuario es:", authData.role);
             return true;
         } else {
-            alert("El token es nulo o está vacío");
+            alert("Credenciales incorrectas o error en respuesta");
             return false;
         }
 
@@ -41,19 +43,17 @@ async function handleAsyncLogin() {
 
 // envío ------------------------------------------------------------------------
 
-if (domSubmitButton) {
-    domSubmitButton.addEventListener('click', async (e) => { 
+if (domLoginForm) {
+    domLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        
-        if (!domLoginForm.checkValidity()) { // validar el formulario
+        if (!domLoginForm.checkValidity()) { // validar formulario
             e.stopPropagation();
             domLoginForm.classList.add('was-validated');
             return;
         }
     
-        const loginSuccess = await handleAsyncLogin(); // llamar a la función asíncrona
-        
-        if (loginSuccess) {
+        const success = await handleAsyncLogin();
+        if (success) {
             window.location.href = 'index.html';
         }
     });

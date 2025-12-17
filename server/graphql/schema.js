@@ -7,6 +7,7 @@ const schema = buildSchema(`
   name:String!
   email:String!
   password:String!
+  role: String!
   createdAt:String!
   }
 
@@ -21,11 +22,19 @@ const schema = buildSchema(`
   createdAt:String!
   }
 
+  # Gestión de login
+  type AuthPayload {
+    token: String!
+    userId: ID!
+    role: String!
+  }
+
   # Input creacion
   input CreateUserInput {
     name:String!
     email:String!
     password:String!
+    role: String
   }
 
   # Input actualizacion
@@ -80,7 +89,7 @@ const schema = buildSchema(`
 
 type Mutation {
   # autenticacion y login -------------------------------------
-  login(email: String!, password: String!): String
+  login(email: String!, password: String!): AuthPayload
 
   # crear usuario y devuelve usuario creado -------------------
   crearUsuario(input: CreateUserInput!): User

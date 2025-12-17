@@ -5,7 +5,7 @@ const SECRET_KEY = "backend";
 const auth = {
   // generar el token ---------------------------
   generateToken: (user) => {
-    return jwt.sign({ email: user.email }, SECRET_KEY, { expiresIn: "1h" });
+    return jwt.sign({ userId: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: "1h" });
   },
 
   //verfiicar el token y decodificarlo ----------

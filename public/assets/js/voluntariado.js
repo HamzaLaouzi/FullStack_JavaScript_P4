@@ -1,23 +1,34 @@
-import { showActiveUser, addCardDB, fetchAllVoluntariados, removeSelectedCard, getActiveUserEmail } from "./almacenaje.js"
+import { showActiveUser, addCardDB, fetchAllVoluntariados, removeSelectedCard, getActiveUserEmail, getUserRole } from "./almacenaje.js"
 
 // declaramos constantes para obtener el ID de diferentes elementos del DOM
 const submitButton = document.getElementById("submitId")
 
 async function addCardsInTable() {
     const tableBody = document.getElementById('volTableBody'); 
-    if (!tableBody) return console.error("Error: La tabla de voluntariados (<tbody>) no se encuentra.");
+    if (!tableBody) return console.error("Error: La tabla de voluntariados no se encuentra.");
 
     try {
         const cards = await fetchAllVoluntariados(); 
+
+        const currentUserEmail = getActiveUserEmail();
+        const currentUserRole = getUserRole();
+        
+        // filtro por rol (admin ve todos los vols y user solo los suyos)
+        const visibleCards = cards.filter(card => {
+            if (currentUserRole === 'admin') {
+                return true;
+            }
+            return card.email === currentUserEmail; 
+        });
         
         tableBody.innerHTML = '';
 
-        if (cards.length === 0) {
+        if (visibleCards.length === 0) {
             tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No hay voluntariados registrados.</td></tr>';
             return;
         }
 
-        cards.forEach(card => {
+        visibleCards.forEach(card => {
             const row = tableBody.insertRow();
 
             row.innerHTML = `
@@ -69,26 +80,26 @@ async function handleNewCard(event) {
     const date = document.getElementById("volDateId").value;
     const description = document.getElementById("newVolDescriptionId").value.trim();
     const volunType = document.getElementById("volSelectId").value;
-    const activeUserEmail = getActiveUserEmail();
+    const autor = getActiveUserEmail();
 
-    if (!activeUserEmail) {
-        alert('Debes iniciar sesión para crear un voluntariado');
+    if (!title || !email || !date || !description || !volunType) {
+        alert("Todos los campos son oblugatorios.");
         return;
     }
     
     const input = { 
         title,
         email,
-        date: date,
+        date,
         description, 
         volunType,
-        autor: activeUserEmail,
+        autor
     };
 
     try {
-        const newCard = await addCardDB(input); // llamada asíncrona
-        alert(`Voluntariado '${newCard.title}' creado correctamente.`);
-        
+        await addCardDB(input); // llamada asíncrona
+        alert(`Voluntariado '${title}' creado correctamente.`);
+        document.getElementById("formVoluntariado");
         await addCardsInTable();
         await getChartData(); 
 
@@ -120,23 +131,31 @@ export async function handleDeleteCard(event) {
     }
 }
 
+// inicialización
 const formVoluntariado = document.getElementById("formVoluntariado"); // id del formulario
 if (formVoluntariado) {
     formVoluntariado.addEventListener("submit", handleNewCard);
-} else {
-
+} else if (submitButton) {
     submitButton.addEventListener("click", handleNewCard);
 }
 
 
 
 window.addEventListener("DOMContentLoaded", async () => {
-    console.log("=== voluntariado.js DOMContentLoaded -ASINCRONA ==")
+    console.log(" INICIANDO VOLUNTARIADOS ");
     
-    showActiveUser()
+    const user = getActiveUserEmail();
+
+    if (!user) { // check logged para mostrar página
+        alert("Inicia sesión para acceder a la gestión de voluntariados.");
+        window.location.href = "login.html";
+        return;
+    }
+
+    showActiveUser();
     
-    await addCardsInTable()
-    await getChartData()
+    await addCardsInTable();
+    await getChartData();
     
-    console.log("página voluntariados iniciada")
-})
+    console.log("página voluntariados iniciada");
+});
