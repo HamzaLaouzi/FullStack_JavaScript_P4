@@ -227,24 +227,27 @@ const resolvers = {
   },
 
   //crear voluntariado ----------------------------------------------------------------
-  crearVoluntariado: async (args) => {
-    const { input } = args;
+  // En server/graphql/resolvers.js
 
-    if (!input) throw new GraphQLError('nuevo input requerido');
+  crearVoluntariado: async (parent, { input }, context) => {
+    // 1. Verificar autenticación
+    if (!context.user) throw new GraphQLError('No autenticado');
 
     try {
-      const usuarioExiste = await User.findOne({ email: input.email });
-      if (!usuarioExiste) {
-        throw new GraphQLError('el usuario que intenta crear el voluntariado no existe');
-      }
+        const nuevoVoluntariado = new Voluntariado(input);
+        await nuevoVoluntariado.save();
 
-      const nuevoVoluntariado = await Voluntariado.create(input);
-      
-      return nuevoVoluntariado;
+        // 2. ✨ MAGIA WEBSOCKETS: Avisar a todos los clientes
+        // 'context.io' viene del index.js que acabamos de configurar
+        if (context.io) {
+            context.io.emit('nuevo_voluntariado', nuevoVoluntariado);
+        }
+
+        return nuevoVoluntariado;
     } catch (error) {
-      throw new GraphQLError(`Error al crear el voluntariado: ${error.message}`);
+        throw new Error(error);
     }
-  },
+},
 
   // actualizar voluntariado -----------------------------------------------------------
   actualizarVoluntariado: async (args) => {
