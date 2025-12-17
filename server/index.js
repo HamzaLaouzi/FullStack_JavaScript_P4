@@ -1,79 +1,53 @@
-// Herramientas
-const dotenv = require('dotenv');
-dotenv.config();
 const express = require('express');
+const http = require('http'); // Importar HTTP
+const { Server } = require("socket.io"); // Importar Socket.io
+const mongoose = require('./mongo'); // Tu conexión a BD
 const cors = require('cors');
-const { createServer } = require('http'); // Necesario para Socket.io
-const { Server } = require('socket.io'); // Importamos Socket.io
+const path = require('path');
+const dotenv = require('dotenv');
 
-// Base de datos y GraphQL
-const { connectDB } = require('./mongo');
-const { typeDefs } = require('./graphql/schema');
-const { resolvers } = require('./graphql/resolvers');
-const { ApolloServer } = require('@apollo/server');
-const { expressMiddleware } = require('@apollo/server/express4');
-const { authMiddleware } = require('./auth'); // Tu middleware de auth (verificar ruta)
+dotenv.config();
 
-// Rutas REST (opcional si ya usas todo GraphQL)
-const userRoutes = require('./rutas/userRoutes'); 
-const cardRoutes = require('./rutas/cardRoutes');
-
-// 1. Configuración Inicial
 const app = express();
-const httpServer = createServer(app); // Creamos servidor HTTP envolviendo Express
-
-// 2. Conectar a MongoDB
-connectDB();
-
-// 3. Configurar Socket.io (CORS es vital aquí)
-const io = new Server(httpServer, {
-    cors: {
-        origin: "*", // Permite conexiones desde cualquier frontend
-        methods: ["GET", "POST"]
-    }
+const server = http.createServer(app); // Crear servidor HTTP envolviendo a Express
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Ajusta esto en producción a tu dominio de frontend
+    methods: ["GET", "POST"]
+  }
 });
 
-// Eventos de Socket.io
-io.on('connection', (socket) => {
-    console.log('✨ Cliente conectado a WebSockets:', socket.id);
-    
-    socket.on('disconnect', () => {
-        console.log('Cliente desconectado');
-    });
-});
-
-// Hacemos 'io' accesible en toda la app (para usarlo en resolvers/controladores)
-app.set('socketio', io);
-
-// 4. Middlewares de Express
+// Middlewares
 app.use(cors());
 app.use(express.json());
-app.use(express.static('public')); // Servir el Frontend (HTML/CSS/JS)
 
-// 5. Configurar Apollo Server
-const startServer = async () => {
-    const server = new ApolloServer({ typeDefs, resolvers });
-    await server.start();
+// Rutas API
+app.use('/api/users', require('./rutas/userRoutes'));
+app.use('/api/cards', require('./rutas/cardRoutes'));
 
-    // Middleware de GraphQL con Contexto (Pasamos el usuario y socket.io)
-    app.use('/graphql', expressMiddleware(server, {
-        context: async ({ req }) => {
-            const user = authMiddleware(req); // Verificamos token
-            return { user, io }; // Inyectamos usuario y socket.io al contexto
-        }
-    }));
+// WebSockets
+io.on('connection', (socket) => {
+  console.log('Cliente conectado:', socket.id);
 
-    // Rutas REST legacy (si las necesitas)
-    app.use('/api/users', userRoutes);
-    app.use('/api/cards', cardRoutes);
+  // Ejemplo: Escuchar evento del cliente
+  socket.on('nuevo_voluntariado', (data) => {
+    // Reenviar a todos los clientes para actualizar el dashboard en tiempo real
+    io.emit('actualizar_dashboard', data);
+  });
 
-    // 6. ARRANCAR EL SERVIDOR (Usamos httpServer, NO app)
-    const PORT = process.env.PORT || 4000;
-    httpServer.listen(PORT, () => {
-        console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-        console.log(`📡 WebSockets listos`);
-        console.log(`graphQL en http://localhost:${PORT}/graphql`);
-    });
-};
+  socket.on('disconnect', () => {
+    console.log('Cliente desconectado');
+  });
+});
 
-startServer();
+// Hacer disponible 'io' en la app si lo necesitas en controladores
+app.set('socketio', io);
+
+// Servir estáticos en producción/despliegue
+app.use(express.static(path.join(__dirname, '../public')));
+
+const PORT = process.env.PORT || 5000;
+// IMPORTANTE: Usar server.listen, no app.listen
+server.listen(PORT, () => {
+  console.log(`Servidor corriendo en puerto ${PORT}`);
+});

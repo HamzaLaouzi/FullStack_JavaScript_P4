@@ -1,54 +1,47 @@
 const mongoose = require('mongoose');
 
-// esquema ------------------------------------------------------------------------------
 const voluntariadoSchema = new mongoose.Schema({
-    title: {
-        type: String,
-        required: [true, 'Campo obligatorio'],
-        trim: true
-    },
-    description: {
-        type: String,
-        required: [true, 'Campo obligatorio'],
-    },
-    volunType: {
-        type: String,
-        required: [true, 'Campo obligatorio'],
-        trim: true
-    },
-    email: { 
-        type: String,
-        required: [true, 'Campo obligatorio'],
-        trim: true,
-        lowercase: true,
-    },
-    autor: { 
-        type: String,
-        required: [true, 'Campo obligatorio'],
-        trim: true
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now,
+  nombre: {
+    type: String,
+    required: [true, 'El nombre es obligatorio'],
+    trim: true
+  },
+  descripcion: {
+    type: String,
+    required: [true, 'La descripción es obligatoria']
+  },
+  fecha: {
+    type: Date,
+    required: [true, 'La fecha es obligatoria'],
+    // Validación personalizada: la fecha no puede ser en el pasado
+    validate: {
+      validator: function(v) {
+        return v && v > Date.now();
+      },
+      message: 'La fecha del voluntariado debe ser futura.'
     }
+  },
+  lugar: {
+    type: String,
+    required: true
+  },
+  categoria: {
+    type: String,
+    enum: ['Salud', 'Educación', 'Medio Ambiente', 'Social'], // Ejemplo de enum
+    default: 'Social'
+  },
+  creador: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }
 }, {
-    // opciones esquema -----------------------------------------------------------------
-    timestamps: true,
-    toJSON: {
-        virtuals: true,
-        transform: (doc, ret) => {
-            ret.id = ret._id;
-            delete ret._id;
-            delete ret.__v; 
-            ret.createdAt = ret.createdAt ? ret.createdAt.toLocaleString('es-ES') : '';
-        }
-    },
-    toObject: {
-        virtuals: true,
-    }
+  timestamps: true // Esto agrega automáticamente createdAt y updatedAt
 });
 
-// crear modelo -----------------------------------------------------------------------------
-const Voluntariado = mongoose.model('Voluntariado', voluntariadoSchema, 'voluntariados');
+// Middleware pre-save (ejemplo para log de auditoría o validaciones extra)
+voluntariadoSchema.pre('save', function(next) {
+  console.log(`Guardando voluntariado: ${this.nombre}`);
+  next();
+});
 
-module.exports = Voluntariado;
+module.exports = mongoose.model('Voluntariado', voluntariadoSchema);
