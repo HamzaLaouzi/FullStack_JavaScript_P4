@@ -161,10 +161,14 @@ export async function getVoluntariados() {
 // crear voluntariados--------------------------------------------------
 export async function createVoluntariado(input) {
     const MUTATION = `
-        mutation CrearVoluntariado($input: VoluntariadoInput!) {
+        mutation CrearVoluntariado($input: CreateVoluntariadoInput!) {
             crearVoluntariado(input: $input) {
                 id
                 title
+                email
+                date
+                description
+                volunType
                 autor
                 createdAt
             }
@@ -193,12 +197,14 @@ export async function deleteVoluntariadoById(id) {
 // actualizar voluntariados -----------------------------------------------
 export async function updateVoluntariado(id, input) {
     const MUTATION = `
-        mutation ActualizarVoluntariado($id: ID!, $input: VoluntariadoUpdateInput!) {
+        mutation ActualizarVoluntariado($id: ID!, $input: UpdateVoluntariadoInput!) {
             actualizarVoluntariado(id: $id, input: $input) {
                 id
                 title
+                email
+                date
                 description
-                autor
+                volunType
             }
         }
     `;

@@ -54,6 +54,19 @@ dragContainer.addEventListener("drop", (e) => {
     moveCard(cardTitleSafe, dropContainer, dragContainer)
 })
 
+//
+function moveCard(cardId, fromContainer, toContainer) {
+  const cardElement = fromContainer.querySelector(`#card-${cardId}`);
+  if (!cardElement) {
+    console.error('Tarjeta no encontrada:', cardId);
+    return;
+  }
+  
+  toContainer.appendChild(cardElement);
+  console.log(`Tarjeta ${cardId} movida`);
+}
+
+
 // CREACIÓN TARJETAS----------------------------------------------------------------------------------------------
 function createCardElement(card) {
     const cardElement = document.createElement('div');
@@ -74,7 +87,7 @@ function createCardElement(card) {
             <p class="card-text">${card.description.substring(0, 100)}${card.description.length > 100 ? '...' : ''}</p>
             <p class="card-subtitle mb-2 text-muted small">
                 Autor: ${card.autor} (${card.email}) <br>
-                Fecha: ${card.createdAt}
+                Fecha: ${card.date} <br>
             </p>
         </div>
     `;
@@ -130,7 +143,7 @@ function applyFilter(filter) {
 
     if (!dragContainer) return
 
-    const cards = dragContainer.querySelectorAll(".dragBox")
+    const cards = dragContainer.querySelectorAll(".card-draggable")
 
     cards.forEach(card => {
         const type = card.dataset.volunType  // "Petición" o "Oferta"
@@ -144,40 +157,6 @@ function applyFilter(filter) {
                 card.classList.add("d-none")
             }
         }
-    })
-}
-
-function initFilterTabs() {
-    const tabPeticiones = document.getElementById("tab-peticiones")
-    const tabOfertas = document.getElementById("tab-ofertas")
-    const tabTodas = document.getElementById("tab-todas")
-
-    if (!tabPeticiones || !tabOfertas || !tabTodas) return
-
-    const buttons = [tabPeticiones, tabOfertas, tabTodas]
-
-    function setActive(btn) {
-        buttons.forEach(b => {
-            b.classList.remove("btn-primary")
-            b.classList.add("btn-outline-primary")
-        })
-        btn.classList.remove("btn-outline-primary")
-        btn.classList.add("btn-primary")
-    }
-
-    tabPeticiones.addEventListener("click", () => {
-        setActive(tabPeticiones)
-        applyFilter("Petición")
-    })
-
-    tabOfertas.addEventListener("click", () => {
-        setActive(tabOfertas)
-        applyFilter("Oferta")
-    })
-
-    tabTodas.addEventListener("click", () => {
-        setActive(tabTodas)
-        applyFilter("todos")
     })
 }
 
@@ -217,6 +196,5 @@ window.addEventListener("DOMContentLoaded", async () => {
     const allCards = await loadAndRenderCards();
     
     initFilter(allCards)
-    initFilterTabs()
     console.log("Página principal iniciada")
 });

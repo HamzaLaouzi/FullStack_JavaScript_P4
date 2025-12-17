@@ -38,11 +38,11 @@ const schema = buildSchema(`
   # Input creacion
   input CreateVoluntariadoInput {
     title:String!
-    description:String!
-    autor:String!
-    date:String!
     email:String!
+    date:String!
+    description:String!
     volunType:String!
+    autor:String!
   }
   
   # Input actualizacion
@@ -50,9 +50,9 @@ const schema = buildSchema(`
     title:String
     description:String
     autor:String
-    date:String
     email:String
     volunType:String
+    date:String
   }
 
   type Query {

@@ -7,6 +7,17 @@ const voluntariadoSchema = new mongoose.Schema({
         required: [true, 'Campo obligatorio'],
         trim: true
     },
+    email: { 
+        type: String,
+        required: [true, 'Campo obligatorio'],
+        trim: true,
+        lowercase: true,
+    },
+    date: {
+        type: String,
+        required: [true, 'Campo obligatorio'],
+        trim: true
+    },
     description: {
         type: String,
         required: [true, 'Campo obligatorio'],
@@ -15,12 +26,6 @@ const voluntariadoSchema = new mongoose.Schema({
         type: String,
         required: [true, 'Campo obligatorio'],
         trim: true
-    },
-    email: { 
-        type: String,
-        required: [true, 'Campo obligatorio'],
-        trim: true,
-        lowercase: true,
     },
     autor: { 
         type: String,

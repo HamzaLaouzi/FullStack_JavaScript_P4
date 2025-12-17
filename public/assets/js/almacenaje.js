@@ -72,22 +72,28 @@ export function showActiveUser() {
     const userEmail = getActiveUserEmail();
 
     if (userEmail) {
-        domUserLogged.textContent = userEmail;
+        domUserLogged.innerHTML = ''; 
+
+        const emailSpan = document.createElement("span");
+        emailSpan.textContent = userEmail;
+        domUserLogged.appendChild(emailSpan);
+
+        const logoutLink = document.createElement("a"); // logout dinámico
+        logoutLink.href = "#";
+        logoutLink.textContent = "Cerrar sesión";
+        logoutLink.className = "text-danger ms-2 text-decoration-none";
+        logoutLink.style.fontSize = "0.9em";
+        logoutLink.style.cursor = "pointer";
+        logoutLink.addEventListener("click", (e) => {
+            e.preventDefault();
+            logoutUser();
+            window.location.href = "login.html";
+        });
+
+        domUserLogged.appendChild(logoutLink);
     } else {
         domUserLogged.textContent = "-no login-";
     }
-}
-
-// hacer login ------------------------------------------------
-export function loginUser() {
-    console.warn("loginUser() ha sido reescrita. Se necesita async/await en login.js para usar el servicio JWT.");
-    alert("Proceso de Login deshabilitado temporalmente. Continúa con la Fase 2 (Login/JWT).");
-    return false;
-}
-
-// BORRAR??? ---------------------------------------------------------------------------------------------
-export function loadUsersToStorage() {
-    console.warn("loadUsersToStorage() está obsoleto. La carga es asíncrona via fetchAllUsers().");
 }
 
 // CRUD VOLUNTARIADOS -------------------------------------------------------------------------------------

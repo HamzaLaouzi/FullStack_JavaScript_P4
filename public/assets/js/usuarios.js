@@ -64,9 +64,9 @@ async function handleDeleteUser(e) {
 async function handleNewUser(e) {
     e.preventDefault();
     const form = e.target;
-    const name = form.querySelector('#alta-usr-name').value.trim();
-    const email = form.querySelector('#alta-usr-email').value.trim();
-    const password = form.querySelector('#alta-usr-pswrd').value;
+    const name = document.getElementById('alta-usr-name').value.trim();
+    const email = document.getElementById('alta-usr-email').value.trim();
+    const password = document.getElementById('alta-usr-pswrd').value;
 
     if (!name || !email || !password) {
         alert('Todos los campos son obligatorios');

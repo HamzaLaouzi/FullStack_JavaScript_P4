@@ -64,9 +64,11 @@ async function getChartData() {
 async function handleNewCard(event) {
     event.preventDefault(); // Detener el envío del formulario
     
-    const title = document.getElementById("titleId").value.trim();
-    const description = document.getElementById("descId").value.trim();
-    const volunType = document.getElementById("volunTypeId").value;
+    const title = document.getElementById("newVolTitleId").value.trim();
+    const email = document.getElementById("newVolEmailId").value.trim();
+    const date = document.getElementById("volDateId").value;
+    const description = document.getElementById("newVolDescriptionId").value.trim();
+    const volunType = document.getElementById("volSelectId").value;
     const activeUserEmail = getActiveUserEmail();
 
     if (!activeUserEmail) {
@@ -75,18 +77,17 @@ async function handleNewCard(event) {
     }
     
     const input = { 
-        title, 
+        title,
+        email,
+        date: date,
         description, 
-        volunType, 
+        volunType,
         autor: activeUserEmail,
-        email: activeUserEmail,
     };
 
     try {
         const newCard = await addCardDB(input); // llamada asíncrona
         alert(`Voluntariado '${newCard.title}' creado correctamente.`);
-
-        event.target.reset(); 
         
         await addCardsInTable();
         await getChartData(); 
@@ -107,13 +108,11 @@ export async function handleDeleteCard(event) {
     }
 
     try {
-        // [ANTES]: removeSelectedCard(cardId) era síncrono o REST.
-        // [AHORA]: removeSelectedCard es la función wrapper asíncrona de GraphQL.
         const deletedCard = await removeSelectedCard(cardId);
         
         alert(`Voluntariado con ID ${deletedCard.id} eliminado.`);
 
-        await loadCards(); // Recargar la lista de tarjetas
+        await addCardsInTable(); // Recargar la lista de tarjetas
 
     } catch (error) {
         alert(`Error al eliminar el voluntariado: ${error.message}`);
