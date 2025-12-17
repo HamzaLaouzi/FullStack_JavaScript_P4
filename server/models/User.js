@@ -24,7 +24,7 @@ const userSchema = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-    }
+    },
 
     role: {
         type: String,
@@ -35,7 +35,8 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: true
     }
-}, {
+}, 
+    {
     // opciones esquema -----------------------------------------------------------------
     timestamps: true,
     // transformar a JSON o JS

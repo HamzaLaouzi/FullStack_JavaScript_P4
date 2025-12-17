@@ -135,8 +135,7 @@ const resolvers = {
         });
       }
 
-      const token = generateToken({ id: usuario._id.toString(), email: usuario.email });
-      return token;
+    const token = generateToken(usuario);      return token;
     } catch (error) {
       if (error.extensions?.code === 'UNAUTHENTICATED') {
           throw error;
