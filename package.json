@@ -4,9 +4,9 @@
     "description": "Backend voluntariados",
     "main": "index.js",
     "scripts": {
-        "start": "node index.js",
-        "dev": "nodemon index.js",
-        "migrate": "node migrateToMongo.js"
+        "start": "node server/index.js",
+        "dev": "nodemon server/index.js",
+        "migrate": "node server/migrateToMongo.js"
     },
     "keywords": [
         "graphql",
@@ -27,7 +27,8 @@
         "jsonwebtoken": "^9.0.3",
         "mongodb": "^7.0.0",
         "mongoose": "^9.0.1",
-        "ruru": "^2.0.0-rc.3"
+        "ruru": "^2.0.0-rc.3",
+        "socket.io": "^4.8.1"
     },
     "devDependencies": {
         "nodemon": "^3.1.11"
