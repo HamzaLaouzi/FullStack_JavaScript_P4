@@ -19,7 +19,7 @@ async function initRegistro() {
     const columnaConsulta = document.getElementById('columna-consulta'); // vista según log
 
     if (user) {
-        if (columnaConsulta) columnaConsulta.style.display = 'block'; // loged
+        if (columnaConsulta) columnaConsulta.style.display = 'block'; 
         await mostrarUsuarios();
     } else {
         if (columnaConsulta) columnaConsulta.style.display = 'none'; // no logged
@@ -39,22 +39,16 @@ async function mostrarUsuarios() { // usuario creados --------------------------
   try {
     const users = await fetchAllUsers();
 
-    // permisos
-    const currentUserEmail = getActiveUserEmail();
     const currentUserRole = getUserRole();
-    const visibleUsers = users.filter(user => {
-        if (currentUserRole === 'admin') return true;
-        return user.email === currentUserEmail;
-    });
 
     tableBody.innerHTML = '';
 
-    if (!visibleUsers || visibleUsers.length === 0) {
+    if (!users || users.length === 0) {
         tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay usuarios registrados.</td></tr>';
         return;
     }
 
-    visibleUsers.forEach(user => {
+    users.forEach(user => {
         const row = tableBody.insertRow();
 
         // boton segun permiso

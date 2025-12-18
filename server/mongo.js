@@ -16,7 +16,17 @@ async function connectDB() {
     }
 
     try {
+        const options = {
+            maxPoolSize: 10, // máximo de conexiones abiertas
+            serverSelectionTimeoutMS: 5000, // por si cae internet
+            socketTimeoutMS: 45000,
+        };
         await mongoose.connect(uri);
+
+        // listeners eventos de conexión
+        mongoose.connection.on('error', err => console.error('Mongoose error:', err));
+        mongoose.connection.on('disconnected', () => console.warn('Mongoose se ha desconectado'));
+
         isConnected = true;
         console.log('Conectado a mongodb con mongoose');
         return mongoose.connection; 

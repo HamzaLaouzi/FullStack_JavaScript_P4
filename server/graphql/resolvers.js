@@ -7,18 +7,42 @@ const Voluntariado = require('../models/Voluntariado');
 
 const { generateToken } = require('../auth');
 
+// Autorizaciones según log y roles ----------------------------------------------------
+const checkAuth = (context, requireAdmin = false) => {
+    if (!context || !context.user) {
+        throw new GraphQLError('No has iniciado sesión.', {
+            extensions: { code: 'UNAUTHENTICATED' }
+        });
+    }
+    
+    if (requireAdmin && context.user.role !== 'admin') {
+        throw new GraphQLError('Se requiere tener rol admin para hacer esta acción', {
+            extensions: { code: 'FORBIDDEN' }
+        });
+    }
+    
+    return context.user;
+};
+
+// helper id comunicacion graphql-mongo
+const toGraph = (doc) => {
+    if (!doc) return null;
+    const { _id, ...rest } = doc;
+    return { id: _id, ...rest };
+};
+
 // eventos de aviso al cambiar voluntariados --------------------------------------------
 const notificacionVoluntariados = (context, accion, datos) => {
     // DEBUGGIN BABY --------------------
     if (!context) {
-        console.error("ERROR CRÍTICO: El 'context' es undefined o null.");
+        console.error("context es undefined o null.");
         return;
     }
     if (!context.io) {
-        console.error("ERROR CRÍTICO: 'context.io' no existe. Socket.io no se pasó al resolver.");
+        console.error("context.io no existe.");
         return;
     }
-    console.log(`Emitiendo evento socket: ${accion} a 'voluntariados_room'`);
+    console.log(`Evento socket: ${accion} emitido a 'voluntariados_room'`);
 
   if (context.io) {
         context.io.to('voluntariados_room').emit('voluntariados_update', { // sala especíica
@@ -31,9 +55,16 @@ const notificacionVoluntariados = (context, accion, datos) => {
 const resolvers = {
   // querys ----------------------------------------------------------------------------------------------------------------------------------------------
   // obtener los usuarios ----------------------------------------------------------------
-  usuarios: async (parent, args, context) => {
+  usuarios: async (_, context) => {
+    const currentUser = checkAuth(context);
     try {
-      return await User.find({}); 
+      if (currentUser.role === 'admin') { // si es admin devuelve todos
+          const users = await User.find({}).lean();
+          return users.map(toGraph);
+      } else {
+          const myUser = await User.findById(currentUser.userId).lean(); // si es user devuelve solo el propio
+          return myUser ? [toGraph(myUser)] : [];
+      }
     } catch (error) {
       throw new GraphQLError(`Error al obtener los usuarios: ${error.message}`);
     }
@@ -41,6 +72,7 @@ const resolvers = {
 
   // buscar usuarios por id --------------------------------------------------------------
   usuario: async (args) => {    
+    checkAuth(context); // check log
     const { id } = args;
     
     if (!id) {
@@ -48,9 +80,8 @@ const resolvers = {
     }
     
     try {
-      const usuario = await User.findById(id); 
-      
-      return usuario;
+      const usuario = await User.findById(id).lean();
+      return toGraph(usuario);
     } catch (error) {
       throw new GraphQLError(`Error al buscar el usuario: ${error.message}`);
     }
@@ -58,6 +89,7 @@ const resolvers = {
 
   // buscar usuario por email ------------------------------------------------------------
   usuarioPorEmail: async (args) => {
+    checkAuth(context); // check log
     const { email } = args;
 
     if (!email) {
@@ -65,9 +97,8 @@ const resolvers = {
     }
 
     try {
-      const usuario = await User.findOne({ email });
-      
-      return usuario; 
+      const usuario = await User.findOne({ email }).lean();
+      return toGraph(usuario); 
     } catch (error) {
       throw new GraphQLError(`Error al buscar el usuario por email: ${error.message}`);
     }
@@ -76,7 +107,8 @@ const resolvers = {
   // obtener los voluntariados -----------------------------------------------------------
   voluntariados: async () => {
     try {
-      return await Voluntariado.find({}); 
+      const docs = await Voluntariado.find({}).lean();
+      return docs.map(toGraph);
     } catch (error) {
       throw new GraphQLError(`Error al obtener los voluntariados: ${error.message}`);
     }
@@ -91,9 +123,8 @@ const resolvers = {
     }
     
     try {
-      const voluntariado = await Voluntariado.findById(id); 
-      
-      return voluntariado;
+      const doc = await Voluntariado.findById(id).lean();
+      return toGraph(doc);
     } catch (error) {
       throw new GraphQLError(`Error al buscar el voluntariado: ${error.message}`);
     }
@@ -108,9 +139,8 @@ const resolvers = {
     }
 
     try {
-      // Usamos Mongoose: find({ campo })
-      const voluntariados = await Voluntariado.find({ volunType: tipo });
-      return voluntariados;
+      const docs = await Voluntariado.find({ volunType: tipo }).lean();
+      return docs.map(toGraph);
     } catch (error) {
       throw new GraphQLError(`Error al buscar por tipo: ${error.message}`);
     }
@@ -125,11 +155,21 @@ const resolvers = {
     }
 
     try {
-      const voluntariados = await Voluntariado.find({ email: email });
-      return voluntariados;
+      const docs = await Voluntariado.find({ email: email }).lean();
+      return docs.map(toGraph);
     } catch (error) {
       throw new GraphQLError(`Error al buscar por autor: ${error.message}`);
     }
+  },
+
+  // datos gráfico ---------------------------------------------
+  estadisticasVoluntariados: async () => {
+    try {
+      return await Voluntariado.aggregate([
+        { $group: { _id: "$volunType", cantidad: { $sum: 1 } } },
+       { $project: { tipo: "$_id", cantidad: 1, _id: 0 } }
+      ]);
+    } catch (error) { throw new GraphQLError(error.message); }
   },
 
   // mutations -------------------------------------------------------------------------------------------------------------------------------------------
@@ -154,6 +194,8 @@ const resolvers = {
   // crear usuario ----------------------------------------------------------------------
   crearUsuario: async ({ input }) => {
     const { name, email, password, role } = input;
+
+    if (role === 'admin') checkAuth(context, true); // sólo el usuario admin puede crear usuarios admin
 
     const existeUsuario = await User.findOne({ email });
     if (existeUsuario) {
@@ -186,6 +228,12 @@ const resolvers = {
   // actualizar usuario -----------------------------------------------------------------
   actualizarUsuario: async (args) => {
     const { id, input } = args;
+
+    const currentUser = checkAuth(context);
+    if (currentUser.role !== 'admin' && currentUser.userId !== id) { // editar user sólo si es admin o si es el propio log
+      throw new GraphQLError('No tienes permiso para modificar este usuario.');
+    }
+
     try {
       if (!id || !input) {
         throw new GraphQLError('Se requiere el ID y los nuevos datos');
@@ -198,7 +246,7 @@ const resolvers = {
           updateData.password = await bcrypt.hash(updateData.password, 10);
       }
       
-      delete updateData.email;
+      delete updateData.email; // no se puede editar el mail
       
       const usuarioActualizado = await User.findByIdAndUpdate(
         id,
@@ -219,6 +267,9 @@ const resolvers = {
   // eliminar usuario -------------------------------------------------------------------
   eliminarUsuario: async (args) => {
     const { id } = args;
+
+    checkAuth(context, true); // check admin
+
     try {
       if (!id) {
         throw new GraphQLError('Se requiere el ID como parametro');
@@ -237,6 +288,11 @@ const resolvers = {
 
   //crear voluntariado ----------------------------------------------------------------
   crearVoluntariado: async ({ input }, context) => {
+    const currentUser = checkAuth(context); // check log
+    if (input.email !== currentUser.email && currentUser.role !== 'admin') { // el autor es el user log
+        throw new GraphQLError('No se pueden crear voluntariados para otros usuarios');
+    }
+    
     if (!input) throw new GraphQLError('nuevo input requerido');
 
     try {
@@ -257,8 +313,19 @@ const resolvers = {
 
   // actualizar voluntariado -----------------------------------------------------------
   actualizarVoluntariado: async ({ id, input }, context) => {
+    const currentUser = checkAuth(context);
+    
+    const voluntariado = await Voluntariado.findById(id);
+    if (!voluntariado) throw new GraphQLError(`Voluntariado con id ${id} no encontrado`);
+
     if (!id || !input) {
         throw new GraphQLError('el ID y los nuevos datos son obligatorios');
+    }
+
+    const esAdmin = currentUser.role === 'admin'; // solo se puede modificar si es admin o es autor
+    const esAutor = voluntariado.email === currentUser.email;
+    if (!esAdmin && !esAutor) {
+        throw new GraphQLError('No tienes permiso para editar este voluntariado.');
     }
 
     try {
@@ -267,10 +334,6 @@ const resolvers = {
         { $set: input },
         { new: true, runValidators: true }
       );
-
-      if (!volunActualizado) {
-        throw new GraphQLError(`Voluntariado con id ${id} no encontrado`);
-      }
 
       notificacionVoluntariados(context, 'update', { id }); // hook para notificar a los clientes
 
@@ -282,15 +345,22 @@ const resolvers = {
 
   // eliminar voluntariado ------------------------------------------------------------
   eliminarVoluntariado: async ({ id }, context) => {
+    const currentUser = checkAuth(context);
      if (!id) {
         throw new GraphQLError('Se requiere el ID como parametro');
       }
+
+    const voluntariado = await Voluntariado.findById(id);
+    if (!voluntariado) throw new GraphQLError(`Voluntariado con id ${id} no encontrado`);
+
+    const esAdmin = currentUser.role === 'admin';  // solo se puede modificar si es admin o es autor
+    const esAutor = voluntariado.email === currentUser.email;
+    if (!esAdmin && !esAutor) {
+        throw new GraphQLError('No tienes permiso para editar este voluntariado.');
+    }
+
     try {
       const voluntariadoAEliminar = await Voluntariado.findByIdAndDelete(id);
-
-      if (!voluntariadoAEliminar) {
-        throw new GraphQLError(`Voluntariado con id ${id} no encontrado`);
-      }
 
       notificacionVoluntariados(context, 'delete', { id }); // hook para notificar a los clientes
 

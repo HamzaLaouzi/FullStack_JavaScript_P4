@@ -6,7 +6,8 @@ const {graphqlHTTP} = require('express-graphql'); // manejar graphql
 const {ruruHTML} = require('ruru/server'); // para probar graphql
 const cors = require('cors'); // permitir peticiones desde postman
 const mongoose = require('mongoose'); // mongoose en lugar del driver nativo
-const http = require('http'); // servidor nativo
+const https = require('https'); // servidor nativo
+const fs = require('fs');
 const { Server } = require("socket.io"); // servidor de sockets
 // modulos -----------------------------------------------------------------------------------------------------------
 const { connectDB } = require('./mongo'); // conectar con mongodb
@@ -22,19 +23,30 @@ const Voluntariado = require('./models/Voluntariado');
 const app = express();
 const PORT = process.env.PORT || 4000; // puerto para correr el servidor
 
-// servidor hibrido http y socket
-const httpServer = http.createServer(app);
-const io = new Server(httpServer, {
+// Configurqación servidor https y sockets ---------------------------------------------------------------------------
+let httpsServer;
+try {
+    const httpsOptions = { // lee los certificados ssl
+        key: fs.readFileSync('server.key'),
+        cert: fs.readFileSync('server.cert'),
+    };
+    httpsServer = https.createServer(httpsOptions, app);
+} catch (e) {
+    console.error("Error al cargar certificados", e);
+    process.exit(1);
+}
+
+// inicializar IO ---------------------------------------------------------------------------------------------------
+const io = new Server(httpsServer, {
     cors: {
-        origin: "*", // permite todas la conections, aquí iría url prod
+        origin: "*", 
         methods: ["GET", "POST"]
     }
-})
+});
 
 // Configurar procesadores -------------------------------------------------------------------------------------------
 app.use(cors()); // permitir peticiones desde postman
 app.use(express.json()); // para que express entienda json
-
 app.use(express.static('public'));
 
 // Autenticacion para websocket --------------------------------------------------------------------------------------
@@ -180,13 +192,12 @@ async function startServer() {
     try {
       await connectDB();
 
-      httpServer.listen(PORT, () => {
-        console.log(`Servidor https y websocket en el localhost: ${PORT}`);
-        console.log(`🔧 Modo (dev/prod): ${process.env.NODE_ENV || 'desarrollo'}`);
-        console.log(`Conectado a mongodb Atlas`);
+      httpsServer.listen(PORT, () => {
+        console.log(`Servidor https y sockets coorriendo en el localhost ${PORT}`);
+        console.log(`Modo (dev/prod): ${process.env.NODE_ENV || 'desarrollo'}`);
       });
     } catch (error) {
-        console.error('Servidor roto por fallo de inicio', error.message);
+        console.error('Fallo al inciar el servidor:', error.message);
         process.exit(1); 
     }
 }

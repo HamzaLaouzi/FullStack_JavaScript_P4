@@ -53,7 +53,13 @@ const voluntariadoSchema = new mongoose.Schema({
     }
 });
 
-// crear modelo -----------------------------------------------------------------------------
+// índices --------------------------------------------------------------------------------
+voluntariadoSchema.index({volunType: 1}); // por tipo
+voluntariadoSchema.index({email: 1}); // por autor
+voluntariadoSchema.index({ date: 1 }); // por fecha
+voluntariadoSchema.index({email: 1, volunType: 1}); // por tipo y autor
+
+// crear modelo ---------------------------------------------------------------------------
 const Voluntariado = mongoose.model('Voluntariado', voluntariadoSchema, 'voluntariados');
 
 module.exports = Voluntariado;

@@ -3,7 +3,7 @@ import {
     getUsers, 
     createNewUser,
     updateUser, 
-    deleteUserById, 
+    deleteUserById,
     getVoluntariados,
     createVoluntariado,
     deleteVoluntariadoById,

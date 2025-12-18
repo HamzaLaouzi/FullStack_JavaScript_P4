@@ -29,6 +29,12 @@ const schema = buildSchema(`
     role: String!
   }
 
+  # Datos gráfico
+  type StatsPayload {
+  tipo: String!
+  cantidad: Int!
+  }
+
   # Input creacion
   input CreateUserInput {
     name:String!
@@ -85,6 +91,9 @@ const schema = buildSchema(`
 
   # busca voluntariado por autor y devuelve array -------------
   voluntariadosPorAutor(email: String!): [Voluntariado]
+
+  # procesar datos gráfico
+  estadisticasVoluntariados: [StatsPayload]
 }
 
 type Mutation {
