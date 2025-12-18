@@ -1,11 +1,19 @@
+/*
+gestiona la comunicación con el server, uso de cache y atenticación
+
+conecta con el servidor graphql y exporta funciones a almacenaje, ejecuta las querys y mutations, gestiona la cache y los tokens
+*/
+
 const GRAPHQL_ENDPOINT = '/graphql'; 
 
 // respuestas guardadas en cache y duración máxima
 const requestCache = new Map(); 
 const CACHE_DURATION = 5000;
 
+// EJECUTOR GRAPHQL -----------------------------------------------------------------------------------------------------------
 /**
  * gestionar peticiones de graphql
+ * tokens para autenticación
  * @param {string} queryOrMutation - la instruccion a ejecutar
  * @param {Object} variables - por si hubiera variables
  * @param {boolean} requiresAuth - si es necesario en token jwt
@@ -16,28 +24,30 @@ const CACHE_DURATION = 5000;
 async function executeGraphQL(queryOrMutation, variables = {}, requiresAuth = false, useCache = false) {
     const token = localStorage.getItem('jwtToken'); // obtener token para autenticacion
 
-    const cacheKey = JSON.stringify({ query: queryOrMutation, variables }); // clave única para la petición (mejora cache)
+    const cacheKey = JSON.stringify({ query: queryOrMutation, variables }); // clave única para la petición
 
     if (useCache && requestCache.has(cacheKey)) { // devolver dato si es lectura
         const cachedEntry = requestCache.get(cacheKey);
         const now = Date.now();
 
-        if (now - cachedEntry.timestamp < CACHE_DURATION) { // usar la cache si está dentro del max
+        if (now - cachedEntry.timestamp < CACHE_DURATION) { // usar la cache si es válida por tiempo
             console.log("Uso de cache");
-            return cachedEntry.data;
+            return cachedEntry.data; // devolver los datos sin pedir al servidor
         } else {
             requestCache.delete(cacheKey); // cuando caduca
         }
     }
 
+    // headers --------------------------------------------------------
     const headers = {
         'Content-Type': 'application/json',
     };
 
     if (requiresAuth && token) {
-        headers['Authorization'] = `Bearer ${token}`; // enviar el token
+        headers['Authorization'] = `Bearer ${token}`; // enviar el token si se requiere autenticación
     }
 
+    // petición al servidor -------------------------------------------
     try {
         const response = await fetch(GRAPHQL_ENDPOINT, {
             method: 'POST',
@@ -49,16 +59,16 @@ async function executeGraphQL(queryOrMutation, variables = {}, requiresAuth = fa
             cache: 'default' // declaramos preferencia de cache al navegador
         });
 
-        // errores del servidor
+        // errores del servidor ----------------------------------------
         if (!response.ok) {
             throw new Error(`Error del servidor: ${response.status} ${response.statusText}`);
         }
 
         const result = await response.json();
 
-        // errores de graphql
+        // errores de graphql -------------------------------------------
         if (result.errors && result.errors.length > 0) {
-            const errorMessages = result.errors.map(err => err.message).join('; ');
+            const errorMessages = result.errors.map(err => err.message).join('; '); // juntar errores
             throw new Error(errorMessages);
         }
 
@@ -79,7 +89,7 @@ async function executeGraphQL(queryOrMutation, variables = {}, requiresAuth = fa
     }
 }
 
-function clearCache() { //  limpiar cache tras una mutation
+function clearCache() { //  limpiar cache tras una mutation y tras logout
     console.log("limpiando cache");
     requestCache.clear();
 }
@@ -115,7 +125,7 @@ export async function createNewUser(name, email, password, role) {
     const variables = {
         input: { name, email, password, role }
     };
-    const data = await executeGraphQL(MUTATION, variables, true); // ruta publica
+    const data = await executeGraphQL(MUTATION, variables, true); // ruta publica (permiso admin crear admin)
     clearCache();
     return data.crearUsuario;
 }
@@ -154,7 +164,7 @@ export async function deleteUserById(id) {
 }
 
 // AUTENTICACION Y LOGIN ----------------------------------------------------------------------------------------------------------------------
-// login --------------------------------------------------------------- (login no tiene cache, sólo en el logut)
+// login --------------------------------------------------------------- (login no tiene cache, sólo clear en el logut)
 export async function loginApi(email, password) {
     const MUTATION = `
         mutation Login($email: String!, $password: String!) {
@@ -166,7 +176,7 @@ export async function loginApi(email, password) {
         }
     `;
     const variables = { email, password };
-    const data = await executeGraphQL(MUTATION, variables, false);
+    const data = await executeGraphQL(MUTATION, variables, false); // pública
     return data.login; 
 }
 
@@ -175,7 +185,7 @@ export function getActiveUserEmail() {
     return localStorage.getItem('activeUserEmail'); 
 }
 
-export function logoutUser() {
+export function logoutUser() { // limpiar sesión anterior
     localStorage.removeItem('jwtToken');
     localStorage.removeItem('activeUserEmail');
     clearCache();
@@ -198,11 +208,12 @@ export async function getVoluntariados() {
             }
         }
     `;
-    const data = await executeGraphQL(QUERY, {}, false, true); // uso cache
+    const data = await executeGraphQL(QUERY, {}, false, true); // publico, uso cache
     return data.voluntariados;
 }
 
 // crear voluntariados--------------------------------------------------
+// evento WS
 export async function createVoluntariado(input) {
     const MUTATION = `
         mutation CrearVoluntariado($input: CreateVoluntariadoInput!) {
@@ -225,6 +236,7 @@ export async function createVoluntariado(input) {
 }
 
 // eliminar voluntariados -----------------------------------------------
+// evento WS
 export async function deleteVoluntariadoById(id) {
     const MUTATION = `
         mutation EliminarVoluntariado($id: ID!) {
@@ -241,6 +253,7 @@ export async function deleteVoluntariadoById(id) {
 }
 
 // actualizar voluntariados -----------------------------------------------
+// evento WS
 export async function updateVoluntariado(id, input) {
     const MUTATION = `
         mutation ActualizarVoluntariado($id: ID!, $input: UpdateVoluntariadoInput!) {
@@ -260,5 +273,5 @@ export async function updateVoluntariado(id, input) {
     return data.actualizarVoluntariado;
 }
 
-// funcion base (específicas?)
+// funcion base
 export { executeGraphQL };

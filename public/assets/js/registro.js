@@ -1,3 +1,9 @@
+/*
+CRUD Usuarios y permisos según rol
+
+importa funciones de crud y sesión y rol
+ */
+
 // Importaciones
 import { 
   showActiveUser,
@@ -9,7 +15,7 @@ import {
 } from "./almacenaje.js";
 
 
-/* GESTIÓN DE USUARIOS --------------------------------------------------------------------------------*/
+/* inicialización --------------------------------------------------------------------------------*/
 async function initRegistro() {
     console.log("Iniciando lógica de registro.js...");
 
@@ -18,7 +24,7 @@ async function initRegistro() {
     const user = getActiveUserEmail();
     const columnaConsulta = document.getElementById('columna-consulta'); // vista según log
 
-    if (user) {
+    if (user) { // control de sesión, si hay log se ve la tabla, si no, no
         if (columnaConsulta) columnaConsulta.style.display = 'block'; 
         await mostrarUsuarios();
     } else {
@@ -26,19 +32,19 @@ async function initRegistro() {
         console.log("Usuario no logueado se le oculta tabla de users");
     }
 
-    const form = document.getElementById('formAltaUsuario');
+    const form = document.getElementById('formAltaUsuario'); // formulario de alta
     if (form) {
         form.addEventListener('submit', handleFormSubmit);
     }
 }
 
+/* GESTIÓN DE USUARIOS --------------------------------------------------------------------------------*/
 async function mostrarUsuarios() { // usuario creados -----------------------------------------------------------
   const tableBody = document.getElementById('lista-usuarios');
   if (!tableBody) return;
 
   try {
-    const users = await fetchAllUsers();
-
+    const users = await fetchAllUsers(); // obtener users y rol
     const currentUserRole = getUserRole();
 
     tableBody.innerHTML = '';
@@ -48,11 +54,10 @@ async function mostrarUsuarios() { // usuario creados --------------------------
         return;
     }
 
-    users.forEach(user => {
+    users.forEach(user => { // crear filas en la tabla
         const row = tableBody.insertRow();
 
-        // boton segun permiso
-        let actionButtonsHtml = '';
+        let actionButtonsHtml = '';  // boton segun permiso, admin puede borrar, user no
         if (currentUserRole === 'admin') {
             actionButtonsHtml = `
                 <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${user.id}">
@@ -71,7 +76,7 @@ async function mostrarUsuarios() { // usuario creados --------------------------
         `;
     });
 
-    if (currentUserRole === 'admin') {
+    if (currentUserRole === 'admin') { // eliminar el user si es admin
         document.querySelectorAll('.delete-btn').forEach(btn => 
             btn.addEventListener('click', eliminarUsuario)
         );
@@ -84,13 +89,13 @@ async function mostrarUsuarios() { // usuario creados --------------------------
 }
 
 async function eliminarUsuario(e) { /* Eliminar usuarios ---------------------------------*/
-    const btn = e.target.closest('.delete-btn');
+    const btn = e.target.closest('.delete-btn'); // obtener botón y id
     const userId = btn.dataset.id;
 
     if (!confirm('¿Seguro de eliminar este usuario permanentemente?')) return;
 
     try {
-        await removeUserById(userId);
+        await removeUserById(userId); // llamada mut graphql
         alert('Usuario eliminado correctamente');
         await mostrarUsuarios(); // Refrescar tabla
     } catch (error) {
@@ -102,7 +107,7 @@ async function eliminarUsuario(e) { /* Eliminar usuarios -----------------------
 async function handleFormSubmit(e) { 
   e.preventDefault();
   
-  const name = document.getElementById('alta-usr-name').value.trim();
+  const name = document.getElementById('alta-usr-name').value.trim(); // valores del form
   const email = document.getElementById('alta-usr-email').value.trim();
   const password = document.getElementById('alta-usr-pswrd').value;
   const role = document.getElementById('alta-usr-role').value;
@@ -114,20 +119,19 @@ async function handleFormSubmit(e) {
 
   try {
     const newUser = await registerNewUser(name, email, password, role);
-    
     const currentUser = getActiveUserEmail();
 
     if (!currentUser) {
         alert("¡Registro completado! Ahora inicia sesión con tus nuevas credenciales."); // no logged
         window.location.href = 'login.html';
     } else {
-        alert(`Usuario "${newUser.name}" creado correctamente.`); // loged admin
+        alert(`Usuario "${newUser.name}" creado correctamente.`); // loged admin creando otro usuario
         e.target.reset();
         await mostrarUsuarios();
     }
 
   } catch (error) {
-    alert(`Error al crear usuario: ${error.message}`);
+    alert(`Error al crear usuario: ${error.message}`); // si intenta crear un admin sin ser admin, campos no válidos o duplicados
   }
 }
 

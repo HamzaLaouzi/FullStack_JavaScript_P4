@@ -1,17 +1,24 @@
+/*
+    administración de voluntariados, CRUD, gráfico y actualizaciones WS
+
+    importa funciones crud, imprime en el html según servidor y actualiza en tiempo real con WS
+*/
+
 import { showActiveUser, addCardDB, fetchAllVoluntariados, removeSelectedCard, getActiveUserEmail, getUserRole } from "./almacenaje.js"
 
 let myChart = null; // variable global para el gráfico, se tiene que poder resetear para que no se superponga al actualizar voluntariados automáticamente
 
-// declaramos constantes para obtener el ID de diferentes elementos del DOM
+// botón para enviar el form de alta
 const submitButton = document.getElementById("submitId")
 
+// Mostrar voluntariados ----------------------------------------------------------------------
+// requiere roles, actualización WS
 async function addCardsInTable() {
     const tableBody = document.getElementById('volTableBody'); 
     if (!tableBody) return console.error("Error: La tabla de voluntariados no se encuentra.");
 
     try {
-        const cards = await fetchAllVoluntariados(); 
-
+        const cards = await fetchAllVoluntariados(); // obtener datos query graphql
         const currentUserEmail = getActiveUserEmail();
         const currentUserRole = getUserRole();
         
@@ -30,7 +37,7 @@ async function addCardsInTable() {
             return;
         }
 
-        visibleCards.forEach(card => {
+        visibleCards.forEach(card => { // render tarjetas
             const row = tableBody.insertRow();
 
             row.innerHTML = `
@@ -45,7 +52,7 @@ async function addCardsInTable() {
             `;
         });
 
-        document.querySelectorAll('.delete-card-btn').forEach(button => {
+        document.querySelectorAll('.delete-card-btn').forEach(button => { // listener par aeliminar
             button.addEventListener('click', handleDeleteCard);
         });
 
@@ -55,26 +62,27 @@ async function addCardsInTable() {
     }
 }
 
+// GRÁFICO CANVAS -------------------------------------------------------------------------------------------------
 async function getChartData() {
     try {
         const cards = await fetchAllVoluntariados();
 
-        const dataByUser = {};
+        const dataByUser = {}; // agrupar por user y luego por tipo
 
-        cards.forEach(card => {
+        cards.forEach(card => { // contar tipo por cada user
             const userEmail = card.email || 'Desconocido';
             
-            if (!dataByUser[userEmail]) {
+            if (!dataByUser[userEmail]) { // contador a 0 para usuario nuevo
                 dataByUser[userEmail] = { 'Petición': 0, 'Oferta': 0 };
             }
-            if (card.volunType === 'Petición') {
+            if (card.volunType === 'Petición') { // contadores por tipo
                 dataByUser[userEmail]['Petición']++;
             } else if (card.volunType === 'Oferta') {
                 dataByUser[userEmail]['Oferta']++;
             }
         });
 
-        const labels = Object.keys(dataByUser);
+        const labels = Object.keys(dataByUser); // datos para el gráfico
         const dataPeticiones = labels.map(email => dataByUser[email]['Petición']);
         const dataOfertas = labels.map(email => dataByUser[email]['Oferta']);
         const ctx = document.getElementById('canvas');
@@ -84,7 +92,7 @@ async function getChartData() {
             myChart.destroy();
         }
 
-        myChart = new Chart(ctx, {
+        myChart = new Chart(ctx, { // nuevo gráfico
             type: 'bar', 
             data: {
                 labels: labels,
@@ -103,7 +111,7 @@ async function getChartData() {
                     }
                 ]
             },
-            options: {
+            options: { // interfaz
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
@@ -141,24 +149,24 @@ async function getChartData() {
 }
 
 // GEST WEBSOCKETS -----------------------------------------------------------------------------------------------------------------------
-let socket;
+let socket; // vairable global para la conexión
 
-function initRealTimeCon() {
-    const token = localStorage.getItem('jwtToken');
+function initRealTimeCon() { // iniciar la conexión en tiempo real
+    const token = localStorage.getItem('jwtToken'); // obtener token
 
-    socket = io({ // autenticación
-        auth: {
+    // config cliente
+    socket = io({
+        auth: {  // autenticación
             token: token
         },
-        reconnection: true,
+        reconnection: true, // reconectar si falla la conexión
         reconnectionAttempts: 5, // intentos máximos + espera entre intentos
         reconnectionDelay: 1000,
     });
 
-
-    socket.on('connect', () => { // ONOPEN
+    socket.on('connect', () => { // ONOPEN conexión exitosa
         console.log('Conectado al servidor en tiempo real');
-        socket.emit('join_voluntariados'); // sala específica para reducir tráfico
+        socket.emit('join_voluntariados'); // sala específica para evitar tráfico
     });
 
     socket.on('voluntariados_update', async (payload) => { // ONMESSAGE cuando hay CRUD de voluntariados
@@ -167,7 +175,7 @@ function initRealTimeCon() {
         await addCardsInTable(); // tabla siempre actualizada
         await getChartData(); 
         
-        notiUpdated(`Datos actualizados: ${payload.action}`);
+        notiUpdated(`Datos actualizados: ${payload.action}`); // noti al user
     });
 
     socket.on('connect_error', (err) => { // errores
@@ -180,7 +188,7 @@ function initRealTimeCon() {
         }
     });
 
-    socket.on('disconnect', (reason) => {
+    socket.on('disconnect', (reason) => { // si hay desconexión
         console.warn('Desconectado del servidor en tiempo real:', reason);
         if (reason === 'io server disconnect') {
             socket.connect(); // reconectar
@@ -188,6 +196,7 @@ function initRealTimeCon() {
     });
 }
 
+// notificación user
 function notiUpdated(mensaje) { // toast visual para feedback de updates
     const toast = document.createElement('div');
     toast.className = 'alert alert-info position-fixed bottom-0 end-0 m-3 p-2 small shadow';
@@ -197,9 +206,9 @@ function notiUpdated(mensaje) { // toast visual para feedback de updates
     setTimeout(() => toast.remove(), 3000);
 }
 
-
+// crear voluntariado ---------------------------------------------------------------
 async function handleNewCard(event) {
-    event.preventDefault(); // Detener el envío del formulario
+    event.preventDefault();
     
     const title = document.getElementById("newVolTitleId").value.trim();
     const email = document.getElementById("newVolEmailId").value.trim();
@@ -223,11 +232,11 @@ async function handleNewCard(event) {
     };
 
     try {
-        await addCardDB(input); // llamada asíncrona
+        await addCardDB(input); // llamada mut graphql
         alert(`Voluntariado '${title}' creado correctamente.`);
         document.getElementById("formVoluntariado");
-        await addCardsInTable();
-        await getChartData(); 
+        await addCardsInTable(); // refresh tabla
+        await getChartData(); // gráfico actualizado
 
     } catch (error) {
         alert(`Error al crear el voluntariado: ${error.message}`);
@@ -235,9 +244,9 @@ async function handleNewCard(event) {
     }
 }
 
+// eliminar voluntariado -----------------------------------------------------------
 export async function handleDeleteCard(event) {
     const cardId = event.target.dataset.id;
-    
     if (!cardId) return;
 
     if (!confirm('¿Estás seguro de que quieres eliminar este voluntariado?')) {
@@ -245,7 +254,7 @@ export async function handleDeleteCard(event) {
     }
 
     try {
-        const deletedCard = await removeSelectedCard(cardId);
+        const deletedCard = await removeSelectedCard(cardId); // mut graphql
         
         alert(`Voluntariado con ID ${deletedCard.id} eliminado.`);
 
@@ -257,7 +266,7 @@ export async function handleDeleteCard(event) {
     }
 }
 
-// inicialización
+// listener form ---------------------------------------------------------------
 const formVoluntariado = document.getElementById("formVoluntariado"); // id del formulario
 if (formVoluntariado) {
     formVoluntariado.addEventListener("submit", handleNewCard);
@@ -266,7 +275,7 @@ if (formVoluntariado) {
 }
 
 
-
+// INICIALIZACIÓN ---------------------------------------------------------------
 window.addEventListener("DOMContentLoaded", async () => {
     console.log(" INICIANDO VOLUNTARIADOS ");
     
@@ -283,7 +292,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     await addCardsInTable();
     await getChartData();
 
-    initRealTimeCon(); // iniciar sockets
+    initRealTimeCon(); // iniciar Wsockets
     
     console.log("página voluntariados iniciada");
 });

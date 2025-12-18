@@ -1,3 +1,8 @@
+/*
+
+implementa las operciones del esquema, interactua con los modelos de mongodb, funcionalidades de autenticación jwt y recibe el contexto de autenticación y el servidor
+*/
+
 const { GraphQLError } = require('graphql');// manejo errores graphql
 const bcrypt = require('bcryptjs');
 
@@ -5,7 +10,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Voluntariado = require('../models/Voluntariado');
 
-const { generateToken } = require('../auth');
+const { generateToken } = require('../auth'); // crear token
 
 // Autorizaciones según log y roles ----------------------------------------------------
 const checkAuth = (context, requireAdmin = false) => {
@@ -15,20 +20,20 @@ const checkAuth = (context, requireAdmin = false) => {
         });
     }
     
-    if (requireAdmin && context.user.role !== 'admin') {
+    if (requireAdmin && context.user.role !== 'admin') { // verificar rol admin si se requiere
         throw new GraphQLError('Se requiere tener rol admin para hacer esta acción', {
             extensions: { code: 'FORBIDDEN' }
         });
     }
     
-    return context.user;
+    return context.user; // si todo ok, devuelve el user
 };
 
-// helper id comunicacion graphql-mongo
-const toGraph = (doc) => {
+// helper id comunicacion graphql-mongo --------------------------------------------------
+const toGraph = (doc) => { // convierte mongo a graphql
     if (!doc) return null;
-    const { _id, ...rest } = doc;
-    return { id: _id, ...rest };
+    const { _id, ...rest } = doc; // separa el id
+    return { id: _id, ...rest }; // devuelve el id
 };
 
 // eventos de aviso al cambiar voluntariados --------------------------------------------
@@ -44,14 +49,15 @@ const notificacionVoluntariados = (context, accion, datos) => {
     }
     console.log(`Evento socket: ${accion} emitido a 'voluntariados_room'`);
 
-  if (context.io) {
-        context.io.to('voluntariados_room').emit('voluntariados_update', { // sala especíica
-            action: accion,
-            data: datos
+  if (context.io) { // enviar evento a la sala
+        context.io.to('voluntariados_room').emit('voluntariados_update', { // sala especíica y nombre del evento
+            action: accion, // crud
+            data: datos // campos
         });
     }
 };
 
+// Implementación querys y mutations ------------------------------------------------------
 const resolvers = {
   // querys ----------------------------------------------------------------------------------------------------------------------------------------------
   // obtener los usuarios ----------------------------------------------------------------
@@ -60,7 +66,7 @@ const resolvers = {
     try {
       if (currentUser.role === 'admin') { // si es admin devuelve todos
           const users = await User.find({}).lean();
-          return users.map(toGraph);
+          return users.map(toGraph); // convertir el id
       } else {
           const myUser = await User.findById(currentUser.userId).lean(); // si es user devuelve solo el propio
           return myUser ? [toGraph(myUser)] : [];
@@ -72,7 +78,7 @@ const resolvers = {
 
   // buscar usuarios por id --------------------------------------------------------------
   usuario: async (args) => {    
-    checkAuth(context); // check log
+    checkAuth(context); // check autenticación
     const { id } = args;
     
     if (!id) {
@@ -89,7 +95,7 @@ const resolvers = {
 
   // buscar usuario por email ------------------------------------------------------------
   usuarioPorEmail: async (args) => {
-    checkAuth(context); // check log
+    checkAuth(context); // check autenticación
     const { email } = args;
 
     if (!email) {
@@ -163,30 +169,29 @@ const resolvers = {
   },
 
   // datos gráfico ---------------------------------------------
-  estadisticasVoluntariados: async () => {
+  estadisticasVoluntariados: async () => { 
     try {
-      return await Voluntariado.aggregate([
-        { $group: { _id: "$volunType", cantidad: { $sum: 1 } } },
-       { $project: { tipo: "$_id", cantidad: 1, _id: 0 } }
+      return await Voluntariado.aggregate([ // agregacion para el gráfico por tipo
+        { $group: { _id: "$volunType", cantidad: { $sum: 1 } } }, // agrupa por tipo y cuenta
+       { $project: { tipo: "$_id", cantidad: 1, _id: 0 } } // pasar id a tipo
       ]);
     } catch (error) { throw new GraphQLError(error.message); }
   },
 
   // mutations -------------------------------------------------------------------------------------------------------------------------------------------
-
   // inicio de sesión autenticado -------------------------------------------------------
   login: async ({ email, password }) => {
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email }); // buscar al user por email
     if (!user) throw new GraphQLError('Usuario no encontrado');
 
-    const valid = await bcrypt.compare(password, user.password);
+    const valid = await bcrypt.compare(password, user.password); // comparar contraseña (hash)
     if (!valid) throw new GraphQLError('Contraseña incorrecta');
 
-    const token = generateToken(user);
+    const token = generateToken(user); // generar el token
 
     return { //authpayload
       token,
-      userId: user.id,
+      userId: user.id, // id de mongo
       role: user.role
     };
   },
@@ -197,12 +202,12 @@ const resolvers = {
 
     if (role === 'admin') checkAuth(context, true); // sólo el usuario admin puede crear usuarios admin
 
-    const existeUsuario = await User.findOne({ email });
+    const existeUsuario = await User.findOne({ email }); // verificar si existe el correo
     if (existeUsuario) {
       throw new GraphQLError('Este correo ya tiene una cuenta.');
     }
 
-    try {
+    try { // crear el nuevo user
         const newUser = new User({
         name,
         email,
@@ -210,14 +215,14 @@ const resolvers = {
         role: role || 'user' // Si no llega rol, asignamos 'user'
     });
         
-    return await newUser.save();
+    return await newUser.save(); // guardar en mongo
     } catch (error) {
         if (error.code === 11000) {
             throw new GraphQLError('', {
                 extensions: { code: 'BAD_USER_INPUT' },
             });
         }
-        if (error.name === 'ValidationError') {
+        if (error.name === 'ValidationError') { // errores de esquema
             const messages = Object.values(error.errors).map(val => val.message).join(', ');
             throw new GraphQLError(`Error de validación: ${messages}`, { extensions: { code: 'BAD_USER_INPUT' } });
         }
@@ -241,14 +246,14 @@ const resolvers = {
 
       let updateData = { ...input };
 
-      if (updateData.password) { 
+      if (updateData.password) { //hash a la nueva contraseña si se cambia
           const bcrypt = require("bcryptjs");
           updateData.password = await bcrypt.hash(updateData.password, 10);
       }
       
       delete updateData.email; // no se puede editar el mail
       
-      const usuarioActualizado = await User.findByIdAndUpdate(
+      const usuarioActualizado = await User.findByIdAndUpdate( // actualizar en la bbdd
         id,
         { $set: updateData },
         { new: true, runValidators: true } 
@@ -288,7 +293,7 @@ const resolvers = {
 
   //crear voluntariado ----------------------------------------------------------------
   crearVoluntariado: async ({ input }, context) => {
-    const currentUser = checkAuth(context); // check log
+    const currentUser = checkAuth(context); // check autenticación
     if (input.email !== currentUser.email && currentUser.role !== 'admin') { // el autor es el user log
         throw new GraphQLError('No se pueden crear voluntariados para otros usuarios');
     }
@@ -296,12 +301,12 @@ const resolvers = {
     if (!input) throw new GraphQLError('nuevo input requerido');
 
     try {
-      const usuarioExiste = await User.findOne({ email: input.email });
+      const usuarioExiste = await User.findOne({ email: input.email }); // check que el user exista
       if (!usuarioExiste) {
         throw new GraphQLError('el usuario que intenta crear el voluntariado no existe');
       }
 
-      const nuevoVoluntariado = await Voluntariado.create(input);
+      const nuevoVoluntariado = await Voluntariado.create(input); // crear en la bbdd
 
       notificacionVoluntariados(context, 'create', { title: nuevoVoluntariado.title }); // hook para notificar a los clientes
       

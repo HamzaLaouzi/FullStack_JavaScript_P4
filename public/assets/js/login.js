@@ -1,3 +1,8 @@
+/*
+gestionar form login, validar input y almacenar tokens
+ llama a mutation login y usa la autenticación
+*/
+
 // importación funciones desde almacenaje ------------------------------------------
 import { showActiveUser, logoutUser } from "./almacenaje.js";
 import { loginApi } from "./graphClient.js";
@@ -17,17 +22,17 @@ async function handleAsyncLogin() {
     const password = passwordInput.value;
 
     try {
-        const authData = await loginApi(email, password); 
+        const authData = await loginApi(email, password); // envía el input, valida y recibe token y datos user
         
         if (authData && authData.token) {
-            // guardar token y rol
+            // guardar token y rol para peticiones que requieran autenticacion
             localStorage.setItem('jwtToken', authData.token);
             localStorage.setItem('activeUserEmail', email);
             localStorage.setItem('userRole', authData.role);
             localStorage.setItem('userId', authData.userId);
 
             console.log("Login con éitox, el rol del usuario es:", authData.role);
-            return true;
+            return true; // hace login
         } else {
             alert("Credenciales incorrectas o error en respuesta");
             return false;
@@ -41,19 +46,18 @@ async function handleAsyncLogin() {
 }
 
 
-// envío ------------------------------------------------------------------------
-
+// envío de formulario  ---------------------------------------------------------
 if (domLoginForm) {
     domLoginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         if (!domLoginForm.checkValidity()) { // validar formulario
             e.stopPropagation();
             domLoginForm.classList.add('was-validated');
-            return;
+            return; // si no es valido, parar
         }
     
         const success = await handleAsyncLogin();
-        if (success) {
+        if (success) { // login!!
             window.location.href = 'index.html';
         }
     });
@@ -68,12 +72,12 @@ function handleLogout() {
 
 // verificar si hay usuario activo al cargar una pégina -------------------------
 document.addEventListener('DOMContentLoaded', () => {
-    const activeToken = localStorage.getItem('jwtToken');
+    const activeToken = localStorage.getItem('jwtToken'); // datos usuario activo
     const activeEmail = localStorage.getItem('activeUserEmail');
     const navUser = document.getElementById('nav-user');
     
     if (activeToken && activeEmail && navUser) { 
-        navUser.textContent = activeEmail;
+        navUser.textContent = activeEmail; // mostrar el correo
         
         const logoutButton = document.createElement('button'); // se crea el botón de cerrar sesión
         logoutButton.textContent = 'Cerrar sesión';
@@ -85,5 +89,5 @@ document.addEventListener('DOMContentLoaded', () => {
         navUser.appendChild(document.createElement('span')).textContent = ')';
     }
     
-    showActiveUser();
+    showActiveUser(); // para mostrar usuario activo en todas las páginas
 });

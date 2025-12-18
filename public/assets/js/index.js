@@ -1,8 +1,15 @@
+/*
+controlador del dashboard - crear y actualizar tarjetas, drag&drop y actualizaciones WS
+
+conecta con almacenaje.js para datos, recibe actualizaciones de WS y manipula html para mostrar las tarjetas
+*/
+
 import { 
     showActiveUser, 
     fetchAllVoluntariados
 } from './almacenaje.js'
 
+// contenedores drag&drop --------------------------------------
 window.dragContainer = document.getElementById("dragContainer")
 window.dropContainer = document.getElementById("dropContainer")
 
@@ -10,7 +17,6 @@ const dragContainer = window.dragContainer
 const dropContainer = window.dropContainer
 
 // DRAG & DROP -----------------------------------------------------------------------------------
-
 // listener para que las tarjetas del "dropContainer" (Selección) sean droppable
 dropContainer.addEventListener("dragover", (e) => {
     e.preventDefault()
@@ -28,7 +34,6 @@ dropContainer.addEventListener("drop", (e) => {
     const cardTitleSafe = e.dataTransfer.getData("text/plain")
     if (!cardTitleSafe) return
 
-    // mover SIEMPRE de disponibles a selección
     moveCard(cardTitleSafe, dragContainer, dropContainer)
 })
 
@@ -49,12 +54,11 @@ dragContainer.addEventListener("drop", (e) => {
     const cardTitleSafe = e.dataTransfer.getData("text/plain")
     if (!cardTitleSafe) return
 
-    // mover SIEMPRE de selección a disponibles
     moveCard(cardTitleSafe, dropContainer, dragContainer)
 })
 
-//
-function moveCard(cardId, fromContainer, toContainer) {
+
+function moveCard(cardId, fromContainer, toContainer) { // mover las tarjetas
   const cardElement = fromContainer.querySelector(`#card-${cardId}`);
   if (!cardElement) {
     return;
@@ -132,8 +136,7 @@ function initFilter(cards) {
 }
 
 // FILTRO TABS ----------------------------------------------------------------------------------------------
-
-let currentFilter = "todos"
+let currentFilter = "todos" // recordar el filtro actual
 
 function applyFilter(filter) {
     currentFilter = filter
@@ -158,27 +161,27 @@ function applyFilter(filter) {
 }
 
 // CARGAR TARJETAS -------------------------------------------------------------------------
+// desde el servidor, actualización WS
 async function loadAndRenderCards() {
     const dragContainer = window.dragContainer;
-    
     dragContainer.innerHTML = ''; 
 
     try {
-        const cards = await fetchAllVoluntariados(); 
+        const cards = await fetchAllVoluntariados(); // obtener desde el servidor
         
         if (cards.length === 0) {
             dragContainer.innerHTML = '<p class="text-center">No hay voluntariados disponibles.</p>';
             return [];
         }
 
-        cards.forEach(card => {
+        cards.forEach(card => { // crear las tarjetas y añadirlas al dom
             const alreadyInDrop = document.getElementById(`card-${card.id}`); // revisar que no esté en drop para no duplicarla
             if (alreadyInDrop && dropContainer.contains(alreadyInDrop)) {
                 return;
             }
             
-            const cardElement = createCardElement(card); 
-            dragContainer.appendChild(cardElement);
+            const cardElement = createCardElement(card); // crear tarjetas
+            dragContainer.appendChild(cardElement); // añadir al container
         });
 
         return cards; 
@@ -190,20 +193,20 @@ async function loadAndRenderCards() {
     }
 }
 
-// webscketsss ------------------------------------------------------------------------------
+// WEBSOCKETS -------------------------------------------------------------------------------
 function initDashboardSocket() {
-    const token = localStorage.getItem('jwtToken');
-    const socket = io({
-        auth: { token: token },
-        reconnection: true
+    const token = localStorage.getItem('jwtToken'); // obtener token para autenticación
+    const socket = io({ // iniciar socket.io
+        auth: { token: token }, // autenticación
+        reconnection: true // reconectar en caso de fallo de conexión
     });
 
-    socket.on('connect', () => {
+    socket.on('connect', () => { // conexión hecha
         console.log('Conectado al servidor en tiempo real');
-        socket.emit('join_voluntariados'); // misma sala
+        socket.emit('join_voluntariados'); // unirse a la misma sala
     });
 
-    socket.on('voluntariados_update', async (payload) => {
+    socket.on('voluntariados_update', async (payload) => { // actualizar los voluntariados cuando hay crud
         console.log('Actualización recibida:', payload.action);
         
         await loadAndRenderCards(); // refresh data servidor
@@ -217,7 +220,7 @@ window.addEventListener("DOMContentLoaded", async () => {
     console.log("INICIANDO INDEX CON DASHBOARD")
     showActiveUser()
 
-    const allCards = await loadAndRenderCards();
+    const allCards = await loadAndRenderCards(); 
     
     initFilter(allCards);
     applyFilter("todos");

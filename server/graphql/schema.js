@@ -1,3 +1,9 @@
+/*
+define los esquemas de graphql de tipos, querys y mutations
+
+se definen las funciones para resolver y el server lo carga para configurar graphql
+*/
+
 const {buildSchema} = require('graphql');
 
 // esquema principal para definir tipos de datos, querys y mutations ---------------------------------------------------------------------------

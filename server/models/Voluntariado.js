@@ -1,3 +1,7 @@
+/*
+estructura de los voluntariados en la bbdd + índices
+*/
+
 const mongoose = require('mongoose');
 
 // esquema ------------------------------------------------------------------------------

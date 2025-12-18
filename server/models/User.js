@@ -1,3 +1,7 @@
+/*
+estructura de los usuarios en la bbdd
+*/
+
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 

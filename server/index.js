@@ -1,3 +1,7 @@
+/*
+inicio de la aplicación, configuración del servidor (https y conexión realtime WS, conecta con la BBDD y graphql)
+*/
+
 // Herramientas -----------------------------------------------------------------------------------------------------
 const dotenv = require('dotenv'); // variables de entorno
 dotenv.config(); // cargar configuración
@@ -23,14 +27,14 @@ const Voluntariado = require('./models/Voluntariado');
 const app = express();
 const PORT = process.env.PORT || 4000; // puerto para correr el servidor
 
-// Configurqación servidor https y sockets ---------------------------------------------------------------------------
+// Configuración servidor https y sockets ----------------------------------------------------------------------------
 let httpsServer;
 try {
     const httpsOptions = { // lee los certificados ssl
         key: fs.readFileSync('server.key'),
         cert: fs.readFileSync('server.cert'),
     };
-    httpsServer = https.createServer(httpsOptions, app);
+    httpsServer = https.createServer(httpsOptions, app); // crea el servidor
 } catch (e) {
     console.error("Error al cargar certificados", e);
     process.exit(1);
@@ -47,15 +51,15 @@ const io = new Server(httpsServer, {
 // Configurar procesadores -------------------------------------------------------------------------------------------
 app.use(cors()); // permitir peticiones desde postman
 app.use(express.json()); // para que express entienda json
-app.use(express.static('public'));
+app.use(express.static('public')); // para los html
 
 // Autenticacion para websocket --------------------------------------------------------------------------------------
 io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
+    const token = socket.handshake.auth.token; // obtener token
     if (token) {
-        const user = verifyToken(token);
+        const user = verifyToken(token); // validar token
         if (user) {
-            socket.user = user;
+            socket.user = user; // introducir datos usuario
             return next();
         }
     }
@@ -68,7 +72,7 @@ io.on('connection', (socket) => {
     console.log('Cliente conectado con websocket:', socket.id);
 
     socket.on('join_voluntariados', () => {
-        socket.join('voluntariados_room');
+        socket.join('voluntariados_room'); // sala específica
         console.log(`Socket unido a sala voluntariados con id ${socket.id}`);
     });
     socket.on('disconnect', () => {
