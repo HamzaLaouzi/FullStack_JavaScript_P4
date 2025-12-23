@@ -1,0 +1,139 @@
+/*
+CRUD Usuarios y permisos según rol
+
+importa funciones de crud y sesión y rol
+ */
+
+// Importaciones
+import { 
+  showActiveUser,
+  fetchAllUsers,
+  registerNewUser,
+  removeUserById,
+  getActiveUserEmail,
+  getUserRole 
+} from "./almacenaje.js";
+
+
+/* inicialización --------------------------------------------------------------------------------*/
+async function initRegistro() {
+    console.log("Iniciando lógica de registro.js...");
+
+    showActiveUser();
+
+    const user = getActiveUserEmail();
+    const columnaConsulta = document.getElementById('columna-consulta'); // vista según log
+
+    if (user) { // control de sesión, si hay log se ve la tabla, si no, no
+        if (columnaConsulta) columnaConsulta.style.display = 'block'; 
+        await mostrarUsuarios();
+    } else {
+        if (columnaConsulta) columnaConsulta.style.display = 'none'; // no logged
+        console.log("Usuario no logueado se le oculta tabla de users");
+    }
+
+    const form = document.getElementById('formAltaUsuario'); // formulario de alta
+    if (form) {
+        form.addEventListener('submit', handleFormSubmit);
+    }
+}
+
+/* GESTIÓN DE USUARIOS --------------------------------------------------------------------------------*/
+async function mostrarUsuarios() { // usuario creados -----------------------------------------------------------
+  const tableBody = document.getElementById('lista-usuarios');
+  if (!tableBody) return;
+
+  try {
+    const users = await fetchAllUsers(); // obtener users y rol
+    const currentUserRole = getUserRole();
+
+    tableBody.innerHTML = '';
+
+    if (!users || users.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">No hay usuarios registrados.</td></tr>';
+        return;
+    }
+
+    users.forEach(user => { // crear filas en la tabla
+        const row = tableBody.insertRow();
+
+        let actionButtonsHtml = '';  // boton segun permiso, admin puede borrar, user no
+        if (currentUserRole === 'admin') {
+            actionButtonsHtml = `
+                <button class="btn btn-sm btn-outline-danger delete-btn" data-id="${user.id}">
+                    <i class="bi bi-trash"></i>
+                </button>
+            `;
+        }
+
+        row.innerHTML = `
+            <td class="align-middle">${user.name}</td>
+            <td class="align-middle">${user.email}</td>
+            <td class="align-middle">********</td>
+            <td class="text-center">
+                ${actionButtonsHtml}
+            </td>
+        `;
+    });
+
+    if (currentUserRole === 'admin') { // eliminar el user si es admin
+        document.querySelectorAll('.delete-btn').forEach(btn => 
+            btn.addEventListener('click', eliminarUsuario)
+        );
+    }
+
+  } catch (error) {
+    console.error("Error al mostrar usuarios:", error);
+    tableBody.innerHTML = '<tr><td colspan="4" class="text-danger text-center">Error de conexión al cargar usuarios</td></tr>';
+  }
+}
+
+async function eliminarUsuario(e) { /* Eliminar usuarios ---------------------------------*/
+    const btn = e.target.closest('.delete-btn'); // obtener botón y id
+    const userId = btn.dataset.id;
+
+    if (!confirm('¿Seguro de eliminar este usuario permanentemente?')) return;
+
+    try {
+        await removeUserById(userId); // llamada mut graphql
+        alert('Usuario eliminado correctamente');
+        await mostrarUsuarios(); // Refrescar tabla
+    } catch (error) {
+        alert(`Error al eliminar: ${error.message}`);
+    }
+}
+
+/* creart user -------------------------------------------------------------------------------------------*/
+async function handleFormSubmit(e) { 
+  e.preventDefault();
+  
+  const name = document.getElementById('alta-usr-name').value.trim(); // valores del form
+  const email = document.getElementById('alta-usr-email').value.trim();
+  const password = document.getElementById('alta-usr-pswrd').value;
+  const role = document.getElementById('alta-usr-role').value;
+
+  if (!name || !email || !password) {
+    alert('Todos los campos son obligatorios');
+    return;
+  }
+
+  try {
+    const newUser = await registerNewUser(name, email, password, role);
+    const currentUser = getActiveUserEmail();
+
+    if (!currentUser) {
+        alert("¡Registro completado! Ahora inicia sesión con tus nuevas credenciales."); // no logged
+        window.location.href = 'login.html';
+    } else {
+        alert(`Usuario "${newUser.name}" creado correctamente.`); // loged admin creando otro usuario
+        e.target.reset();
+        await mostrarUsuarios();
+    }
+
+  } catch (error) {
+    alert(`Error al crear usuario: ${error.message}`); // si intenta crear un admin sin ser admin, campos no válidos o duplicados
+  }
+}
+
+// Ejecutar al cargar el DOM
+window.addEventListener('DOMContentLoaded', initRegistro);
